@@ -1,8 +1,8 @@
 name: Dump psxspu.h
- 
+
 on:
   workflow_dispatch:
- 
+
 jobs:
   dump:
     runs-on: ubuntu-latest
@@ -16,13 +16,13 @@ jobs:
           gh release download --repo Lameguy64/PSn00bSDK --pattern "*" --clobber
           for f in *.zip; do
             [ -f "$f" ] || continue
-            unzip -q "$f" -d "$HOME/psn00bsdk"
+            unzip -q -o "$f" -d "$HOME/psn00bsdk"
           done
           for f in *.tar.gz *.tgz *.tar.xz; do
             [ -f "$f" ] || continue
             tar -xf "$f" -C "$HOME/psn00bsdk"
           done
- 
+
       - name: Dump the real psxspu.h
         run: |
           find "$HOME/psn00bsdk" -iname "psxspu.h" -exec echo "=== {} ===" \; -exec cat {} \;
