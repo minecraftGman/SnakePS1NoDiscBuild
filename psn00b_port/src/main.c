@@ -136,22 +136,28 @@ static void draw_borders(RenderContext *ctx) {
      * as clean rectangles. */
     SVECTOR rot = {0, 0, 0};
     VECTOR pos;
+    int cubeHalf  = 50; /* half-size of draw_cube()'s fixed 100-unit cube */
     int fieldHalfX = 10 * GRID_SIZE; /* 1000 */
     int fieldHalfY = 7  * GRID_SIZE; /* 700  */
     int thick = 15;
     int overlap = thick * 2; /* extend each wall a bit so corners meet with no gaps */
+    /* Distance from field center to the wall's inner edge -- has to clear
+     * the last valid cell's own cube (which extends cubeHalf past its grid
+     * center), or the cube pokes through the wall. */
+    int edgeX = fieldHalfX + cubeHalf;
+    int edgeY = fieldHalfY + cubeHalf;
 
-    pos = (VECTOR){0, -(fieldHalfY + thick), 1800};
-    draw_box(ctx, &rot, &pos, fieldHalfX + overlap, thick, thick, 255, 255, 255); /* top */
+    pos = (VECTOR){0, -(edgeY + thick), 1800};
+    draw_box(ctx, &rot, &pos, edgeX + overlap, thick, thick, 255, 255, 255); /* top */
 
-    pos = (VECTOR){0, fieldHalfY + thick, 1800};
-    draw_box(ctx, &rot, &pos, fieldHalfX + overlap, thick, thick, 255, 255, 255); /* bottom */
+    pos = (VECTOR){0, edgeY + thick, 1800};
+    draw_box(ctx, &rot, &pos, edgeX + overlap, thick, thick, 255, 255, 255); /* bottom */
 
-    pos = (VECTOR){-(fieldHalfX + thick), 0, 1800};
-    draw_box(ctx, &rot, &pos, thick, fieldHalfY + overlap, thick, 255, 255, 255); /* left */
+    pos = (VECTOR){-(edgeX + thick), 0, 1800};
+    draw_box(ctx, &rot, &pos, thick, edgeY + overlap, thick, 255, 255, 255); /* left */
 
-    pos = (VECTOR){fieldHalfX + thick, 0, 1800};
-    draw_box(ctx, &rot, &pos, thick, fieldHalfY + overlap, thick, 255, 255, 255); /* right */
+    pos = (VECTOR){edgeX + thick, 0, 1800};
+    draw_box(ctx, &rot, &pos, thick, edgeY + overlap, thick, 255, 255, 255); /* right */
 }
 
 int main(void) {
