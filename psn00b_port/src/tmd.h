@@ -3,6 +3,23 @@
 
 #include <stdint.h>
 #include <psxgte.h>
+#include <psxgpu.h>
+
+#define OT_LEN      4096
+#define PACKET_LEN  32768
+
+typedef struct {
+    DISPENV  disp;
+    DRAWENV  draw;
+    uint32_t ot[OT_LEN];
+    uint8_t  packets[PACKET_LEN];
+} RenderBuffer;
+
+typedef struct {
+    RenderBuffer buffers[2];
+    uint8_t      *next_packet;
+    int          active;
+} RenderContext;
 
 typedef struct {
     uint32_t id;
@@ -20,15 +37,6 @@ typedef struct {
     uint32_t num_prims;
     int32_t  scale;
 } TMD_OBJ;
-
-typedef struct {
-    uint8_t olen;
-    uint8_t ilen;
-    uint8_t flag;
-    uint8_t mode;
-} TMD_PRIM_HDR;
-
-typedef struct RenderContext RenderContext;
 
 void load_tmd(uint8_t *data);
 void draw_tmd(RenderContext *ctx, SVECTOR *rot, VECTOR *pos);
