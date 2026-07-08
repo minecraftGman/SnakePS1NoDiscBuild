@@ -157,6 +157,7 @@ static void draw_borders(RenderContext *ctx) {
 int main(void) {
     RenderContext ctx; TIM_IMAGE tim;
     int s_x[MAX_SNAKE], s_y[MAX_SNAKE], s_len = 3, dx = 1, dy = 0, f_x = 5, f_y = 5, frames = 0, dead = 0, score = 0;
+    for (int i = 0; i < s_len; i++) { s_x[i] = -i; s_y[i] = 0; }
 
     ResetGraph(0); setup_context(&ctx); initializePad(); SpuInit(); SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     
