@@ -184,6 +184,15 @@ int main(void) {
     for (int i = 0; i < s_len; i++) { s_x[i] = -i; s_y[i] = 0; }
 
     ResetGraph(0); setup_context(&ctx); initializePad(); SpuInit(); SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
+
+    /* SpuInit() does not guarantee the master volume is actually up --
+     * without this, every voice can be correctly configured and keyed on
+     * and still produce no audible output. */
+    SpuCommonAttr masterAttr;
+    masterAttr.mask = SPU_COMMON_MVOLL | SPU_COMMON_MVOLR;
+    masterAttr.mvol.left = 0x3fff;
+    masterAttr.mvol.right = 0x3fff;
+    SpuSetCommonAttr(&masterAttr);
     
     FntLoad(960, 256); 
     font_id = FntOpen(32, 32, 256, 200, 0, 512); 
