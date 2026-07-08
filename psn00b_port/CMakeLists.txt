@@ -11,11 +11,11 @@ if(EXISTS "${LD_SCRIPT_PATH}")
 endif()
 
 psn00bsdk_add_executable(snake STATIC
-	src/main.c
-	src/Controller.c
-	src/AssetsTextures.c
-	src/AssetsAudio.c
-	src/tmd.c
+    src/main.c
+    src/Controller.c
+    src/AssetsTextures.c
+    src/AssetsAudio.c
+    src/tmd.c
 )
 
 target_link_libraries(snake PRIVATE psxapi)
