@@ -135,8 +135,8 @@ static SVECTOR cube_verts[] = {
 };
 
 static int cube_faces[][4] = {
-	{0, 1, 2, 3}, {1, 5, 6, 2}, {5, 4, 7, 6},
-	{4, 0, 3, 7}, {4, 5, 1, 0}, {3, 2, 6, 7}
+	{0, 1, 3, 2}, {1, 5, 2, 6}, {5, 4, 6, 7},
+	{4, 0, 7, 3}, {4, 5, 0, 1}, {3, 2, 7, 6}
 };
 
 static void draw_cube(RenderContext *ctx, SVECTOR *rotation, VECTOR *translation, int r, int g, int b) {
@@ -245,10 +245,12 @@ int main(void) {
 				s_x[0] += dx;
 				s_y[0] += dy;
 
-				if (s_x[0] == f_x && s_y[0] == f_y) {
+				if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) dead = 1;
+
+				if (!dead && s_x[0] == f_x && s_y[0] == f_y) {
 					if (s_len < MAX_SNAKE) s_len++;
-					f_x = (rand() % 10) - 5;
-					f_y = (rand() % 10) - 5;
+					f_x = (rand() % 18) - 9;
+					f_y = (rand() % 12) - 6;
 					play_sample(snd_bite1, snd_bite1_len, 0);
 				}
 
@@ -263,6 +265,7 @@ int main(void) {
 				s_len = 3;
 				dx = 1; dy = 0;
 				for(int i = 0; i < s_len; i++) { s_x[i] = -i; s_y[i] = 0; }
+				f_x = 5; f_y = 5;
 				dead = 0;
 			}
 		}
