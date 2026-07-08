@@ -36,7 +36,7 @@ int	SysPad, SysPadT;
 #define Pad2Start		PAD_START
 #define Pad2Select		PAD_SELECT
 
-void initializePad() {
+void initializePad(void) {
 	InitPAD(1);
 }
 
