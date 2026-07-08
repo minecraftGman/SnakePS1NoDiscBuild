@@ -13,6 +13,8 @@
 #define PACKET_LEN  32768
 #define SCREEN_XRES 320
 #define SCREEN_YRES 240
+#define MAX_SNAKE   100
+#define GRID_SIZE   100
 
 typedef struct {
 	DISPENV  disp;
@@ -124,7 +126,50 @@ static void play_sample(unsigned char *vag, unsigned int len, int voice) {
 	SpuSetKey(1, 1 << voice);
 }
 
-// Cube drawing logic remains the same...
+static SVECTOR cube_verts[] = {
+	{-50, -50, -50}, { 50, -50, -50}, { 50,  50, -50}, {-50,  50, -50},
+	{-50, -50,  50}, { 50, -50,  50}, { 50,  50,  50}, {-50,  50,  50}
+};
+
+static int cube_faces[][4] = {
+	{0, 1, 3, 2}, {1, 5, 2, 6}, {5, 4, 6, 7},
+	{4, 0, 7, 3}, {4, 5, 0, 1}, {3, 2, 7, 6}
+};
+
+static void draw_cube(RenderContext *ctx, SVECTOR *rotation, VECTOR *translation, int r, int g, int b) {
+	MATRIX mtx;
+	RotMatrix(rotation, &mtx);
+	TransMatrix(&mtx, translation);
+	gte_SetRotMatrix(&mtx);
+	gte_SetTransMatrix(&mtx);
+
+	for (int i = 0; i < 6; i++) {
+		long p, otz;
+		POLY_F4 *poly;
+
+		gte_ldv3(&cube_verts[cube_faces[i][0]], &cube_verts[cube_faces[i][1]], &cube_verts[cube_faces[i][2]]);
+		gte_rtpt();
+		gte_nclip();
+		gte_stopz(&p);
+
+		if (p <= 0) continue;
+
+		gte_avsz3();
+		gte_stotz(&otz);
+
+		if (otz > 0 && otz < OT_LEN) {
+			poly = (POLY_F4 *)alloc_packet(ctx, otz, sizeof(POLY_F4));
+			setPolyF4(poly);
+			gte_stsxy0(&poly->x0);
+			gte_stsxy1(&poly->x1);
+			gte_stsxy2(&poly->x2);
+			gte_ldv0(&cube_verts[cube_faces[i][3]]);
+			gte_rtps();
+			gte_stsxy(&poly->x3);
+			setRGB0(poly, r, g, b);
+		}
+	}
+}
 
 int main(void) {
 	RenderContext ctx;
@@ -142,34 +187,65 @@ int main(void) {
 	initializePad();
 	spu_init();
 
-	// START BACKGROUND MUSIC
 	play_sample(jungle_sounds_vag, jungle_sounds_vag_len, 0);
-
-	// ... [Texture loading and title screen loops] ...
 
 	for (;;) {
 		padUpdate();
 		if (!dead) {
-			// Movement logic...
-			// ...
-			
-			// EAT APPLE
-			if (s_x[0] == f_x && s_y[0] == f_y) {
-				s_len++;
-				score += 10;
-				play_sample(bite1_vag, bite1_vag_len, 1);
-			}
+			if ((SysPadT & Pad1Up) && dy == 0) { dx = 0; dy = -1; }
+			if ((SysPadT & Pad1Down) && dy == 0) { dx = 0; dy = 1; }
+			if ((SysPadT & Pad1Left) && dx == 0) { dx = -1; dy = 0; }
+			if ((SysPadT & Pad1Right) && dx == 0) { dx = 1; dy = 0; }
 
-			// COLLISION
-			if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) {
-				dead = 1;
-				play_sample(die1_vag, die1_vag_len, 2);
+			frames++;
+			if (frames > 10) {
+				frames = 0;
+				for (int i = s_len - 1; i > 0; i--) {
+					s_x[i] = s_x[i - 1];
+					s_y[i] = s_y[i - 1];
+				}
+				s_x[0] += dx;
+				s_y[0] += dy;
+
+				if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) {
+					if (!dead) play_sample(die1_vag, die1_vag_len, 2);
+					dead = 1;
+				}
+
+				if (!dead && s_x[0] == f_x && s_y[0] == f_y) {
+					if (s_len < MAX_SNAKE) s_len++;
+					score += 10;
+					f_x = (rand() % 18) - 9;
+					f_y = (rand() % 12) - 6;
+					play_sample(bite1_vag, bite1_vag_len, 1);
+				}
+
+				for (int i = 1; i < s_len; i++) {
+					if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) {
+						if (!dead) play_sample(die1_vag, die1_vag_len, 2);
+						dead = 1;
+					}
+				}
 			}
 		} else {
-            // Restart Logic
 			if (SysPadT & Pad1Cross) { dead = 0; s_len = 3; }
 		}
-        // Drawing logic...
+
+		SVECTOR rot = {400, 0, 0}; 
+		VECTOR pos;
+		pos.vz = 1800;
+
+		pos.vx = f_x * GRID_SIZE;
+		pos.vy = f_y * GRID_SIZE;
+		draw_cube(&ctx, &rot, &pos, 255, 0, 0);
+
+		for (int i = 0; i < s_len; i++) {
+			pos.vx = s_x[i] * GRID_SIZE;
+			pos.vy = s_y[i] * GRID_SIZE;
+			draw_cube(&ctx, &rot, &pos, 0, 255, 0);
+		}
+
+		flip_buffers(&ctx);
 	}
 	return 0;
 }
