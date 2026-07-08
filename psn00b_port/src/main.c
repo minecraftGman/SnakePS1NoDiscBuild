@@ -137,9 +137,9 @@ int main(void) {
                 if (!dead && s_x[0] == f_x && s_y[0] == f_y) { s_len++; score += 10; f_x = (rand() % 18) - 9; f_y = (rand() % 12) - 6; play_sample(bite1_vag, bite1_vag_len, 1); }
                 for (int i = 1; i < s_len; i++) if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
             }
-            FntPrint("SCORE: %d\n", score);
+            FntPrint(font_id, "SCORE: %d\n", score);
         } else {
-            FntPrint("GAME OVER\nSCORE: %d\nPRESS X TO RESTART\n", score);
+            FntPrint(font_id, "GAME OVER\nSCORE: %d\nPRESS X TO RESTART\n", score);
             if (SysPadT & Pad1Cross) { dead = 0; s_len = 3; dx = 1; dy = 0; score = 0; for(int i=0;i<s_len;i++){s_x[i]=-i; s_y[i]=0;} }
         }
 
