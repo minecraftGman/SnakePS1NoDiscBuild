@@ -30,23 +30,52 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p "$HOME/psn00bsdk"
-          gh release download --repo Lameguy64/PSn00bSDK --pattern "*linux*" --dir /tmp/psn00b-dl --clobber
-          # The release ships as a single archive; extract whatever we got.
+          mkdir -p "$HOME/psn00bsdk" /tmp/psn00b-dl
           cd /tmp/psn00b-dl
-          for f in *.zip; do [ -f "$f" ] && unzip -q "$f" -d "$HOME/psn00bsdk"; done
-          for f in *.tar.gz *.tgz; do [ -f "$f" ] && tar -xzf "$f" -C "$HOME/psn00bsdk"; done
-          ls -R "$HOME/psn00bsdk" | head -50
+
+          echo "== Assets in the latest PSn00bSDK release =="
+          gh api repos/Lameguy64/PSn00bSDK/releases/latest --jq '.assets[].name'
+
+          # Download everything from the release rather than guessing a
+          # filename pattern -- it's a small handful of files, and this
+          # keeps the workflow working even if asset names change.
+          gh release download --repo Lameguy64/PSn00bSDK --clobber
+
+          ls -la .
+
+          for f in *.zip; do
+            [ -f "$f" ] || continue
+            echo "Extracting $f"
+            unzip -q "$f" -d "$HOME/psn00bsdk"
+          done
+          for f in *.tar.gz *.tgz *.tar.xz; do
+            [ -f "$f" ] || continue
+            echo "Extracting $f"
+            tar -xf "$f" -C "$HOME/psn00bsdk"
+          done
+
+          echo "== Extracted tree =="
+          find "$HOME/psn00bsdk" -maxdepth 4
 
       - name: Set up PATH and PSN00BSDK_LIBS
         run: |
-          # The archive extracts to some top-level folder; find bin/ and lib/libpsn00b under it.
-          BIN_DIR="$(dirname "$(find "$HOME/psn00bsdk" -maxdepth 3 -type d -name bin | head -1)")/bin"
-          LIBS_DIR="$(find "$HOME/psn00bsdk" -maxdepth 4 -type d -path '*/lib/libpsn00b' | head -1)"
-          echo "$BIN_DIR" >> "$GITHUB_PATH"
-          echo "PSN00BSDK_LIBS=$LIBS_DIR" >> "$GITHUB_ENV"
-          echo "Resolved BIN_DIR=$BIN_DIR"
+          echo "== bin/ directories found =="
+          find "$HOME/psn00bsdk" -maxdepth 4 -type d -name bin -print
+
+          # Add every bin/ dir we found -- the GCC toolchain and the SDK's
+          # own tools (elf2x, mkpsxiso, ...) ship as separate archives with
+          # their own bin/ folders, and both need to be on PATH.
+          find "$HOME/psn00bsdk" -maxdepth 4 -type d -name bin | while read -r d; do
+            echo "$d" >> "$GITHUB_PATH"
+          done
+
+          LIBS_DIR="$(find "$HOME/psn00bsdk" -maxdepth 5 -type d -path '*/lib/libpsn00b' | head -1)"
           echo "Resolved LIBS_DIR=$LIBS_DIR"
+          if [ -z "$LIBS_DIR" ]; then
+            echo "::error::Could not find lib/libpsn00b under $HOME/psn00bsdk -- see the 'Extracted tree' log above and adjust the find pattern."
+            exit 1
+          fi
+          echo "PSN00BSDK_LIBS=$LIBS_DIR" >> "$GITHUB_ENV"
 
       - name: Configure
         run: cmake --preset default .
