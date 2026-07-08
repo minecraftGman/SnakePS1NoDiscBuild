@@ -144,8 +144,9 @@ static void draw_borders(RenderContext *ctx) {
     /* Distance from field center to the wall's inner edge -- has to clear
      * the last valid cell's own cube (which extends cubeHalf past its grid
      * center), or the cube pokes through the wall. */
-    int edgeX = fieldHalfX + cubeHalf;
-    int edgeY = fieldHalfY + cubeHalf;
+    int gap = 20; /* extra clearance beyond the cube's edge -- bump this to push the wall out further */
+    int edgeX = fieldHalfX + cubeHalf + gap;
+    int edgeY = fieldHalfY + cubeHalf + gap;
 
     pos = (VECTOR){0, -(edgeY + thick), 1800};
     draw_box(ctx, &rot, &pos, edgeX + overlap, thick, thick, 255, 255, 255); /* top */
