@@ -18,11 +18,11 @@ extern unsigned char tex_loading[];
 extern unsigned char tex_control[];
 extern unsigned char bite1_vag[]; extern unsigned int bite1_vag_len;
 extern unsigned char die1_vag[]; extern unsigned int die1_vag_len;
-extern unsigned char jungle_sounds_vag[]; extern unsigned int jungle_sounds_vag_len;
 
 extern int  SysPad, SysPadT;
 extern void initializePad(void);
 extern void padUpdate(void);
+extern void padReset(void); // Add this
 #define Pad1Cross PAD_CROSS
 #define Pad1Up    PAD_UP
 #define Pad1Down  PAD_DOWN
@@ -108,11 +108,11 @@ int main(void) {
 	ResetGraph(0); setup_context(&ctx); initializePad(); SpuInit(); SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
 	
 	loadTexture(tex_loading, &tim);
+    padReset(); // Clear input state
 	while (!(SysPadT & Pad1Cross)) { padUpdate(); draw_fullscreen_sprite(&ctx, &tim, 1); flip_buffers(&ctx); }
 	loadTexture(tex_control, &tim);
+    padReset(); // Clear input state
 	while (!(SysPadT & Pad1Cross)) { padUpdate(); draw_fullscreen_sprite(&ctx, &tim, 1); flip_buffers(&ctx); }
-
-	play_sample(jungle_sounds_vag, jungle_sounds_vag_len, 0);
 
 	for (;;) {
 		padUpdate();
@@ -129,7 +129,12 @@ int main(void) {
 				if (!dead && s_x[0] == f_x && s_y[0] == f_y) { s_len++; score += 10; f_x = (rand() % 18) - 9; f_y = (rand() % 12) - 6; play_sample(bite1_vag, bite1_vag_len, 1); }
 				for (int i = 1; i < s_len; i++) if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
 			}
-		} else if (SysPadT & Pad1Cross) { dead = 0; s_len = 3; dx = 1; dy = 0; score = 0; for(int i=0;i<s_len;i++){s_x[i]=-i; s_y[i]=0;} }
+            FntPrint(0, "SCORE: %d\n", score);
+		} else {
+            FntPrint(0, "GAME OVER\nSCORE: %d\nPRESS X TO RESTART", score);
+            if (SysPadT & Pad1Cross) { dead = 0; s_len = 3; dx = 1; dy = 0; score = 0; for(int i=0;i<s_len;i++){s_x[i]=-i; s_y[i]=0;} }
+        }
+        FntFlush(0);
 
 		SVECTOR rot = {400, 0, 0}; VECTOR pos = {0, 0, 1800};
 		pos.vx = f_x * GRID_SIZE; pos.vy = f_y * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 255, 0, 0);
