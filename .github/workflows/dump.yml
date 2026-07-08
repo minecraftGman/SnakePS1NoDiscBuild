@@ -23,6 +23,22 @@ jobs:
             tar -xf "$f" -C "$HOME/psn00bsdk"
           done
 
+      - name: Show what actually got extracted
+        run: |
+          echo "== Top-level extracted tree =="
+          find "$HOME/psn00bsdk" -maxdepth 4
+          echo ""
+          echo "== Any header with 'spu' in the name =="
+          find "$HOME/psn00bsdk" -iname "*spu*.h"
+
       - name: Dump the real psxspu.h
         run: |
-          find "$HOME/psn00bsdk" -iname "psxspu.h" -exec echo "=== {} ===" \; -exec cat {} \;
+          mkdir -p /tmp/out
+          find "$HOME/psn00bsdk" -iname "psxspu.h" -exec cp {} /tmp/out/psxspu.h \;
+          ls -la /tmp/out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: psxspu-header
+          path: /tmp/out
+          if-no-files-found: error
