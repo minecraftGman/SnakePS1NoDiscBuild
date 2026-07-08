@@ -1,0 +1,3 @@
+- name: Dump the real psxspu.h (debug only, remove once audio works)
+        run: |
+          find "$HOME/psn00bsdk" -iname "psxspu.h" -exec echo "=== {} ===" \; -exec cat {} \;
