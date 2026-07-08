@@ -37,7 +37,7 @@ static void setup_context(RenderContext *ctx) {
     SetDefDrawEnv(&(ctx->buffers[1].draw), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     SetDefDispEnv(&(ctx->buffers[1].disp), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     
-    // Set clear color to black
+    // Clear screen to black explicitly
     setRGB0(&(ctx->buffers[0].draw), 0, 0, 0); 
     setRGB0(&(ctx->buffers[1].draw), 0, 0, 0);
     ctx->buffers[0].draw.isbg = 1; 
@@ -124,9 +124,9 @@ int main(void) {
     SpuInit(); 
     SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     
-    // Standard font location in VRAM
+    // Initialize Font at a new VRAM coordinate
     FntLoad(960, 256); 
-    font_id = FntOpen(16, 16, 288, 208, 0, 512); 
+    font_id = FntOpen(32, 32, 200, 200, 0, 512); 
     
     loadTexture(tex_loading, &tim);
     padReset();
@@ -163,7 +163,11 @@ int main(void) {
         }
 
         SVECTOR rot = {400, 0, 0}; VECTOR pos = {0, 0, 1800};
+        
+        // Draw apple
         pos.vx = f_x * GRID_SIZE; pos.vy = f_y * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 255, 0, 0);
+        
+        // Draw snake
         for (int i = 0; i < s_len; i++) { pos.vx = s_x[i] * GRID_SIZE; pos.vy = s_y[i] * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 0, 255, 0); }
         
         FntFlush(font_id); 
