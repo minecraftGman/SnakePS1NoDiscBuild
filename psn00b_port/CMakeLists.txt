@@ -13,4 +13,4 @@ psn00bsdk_add_executable(snake STATIC
 	src/AssetsAudio.c
 )
 
-target_link_libraries(snake psxapi)
+target_link_libraries(snake PRIVATE psxapi)
