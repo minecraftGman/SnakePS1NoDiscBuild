@@ -74,13 +74,31 @@ static void draw_fullscreen_sprite(RenderContext *ctx, TIM_IMAGE *tim, int z) {
     poly->clut  = getClut(tim->crect->x, tim->crect->y);
 }
 
+/* Reads PSn00bSDK's simplified "KVAG" sample format:
+ *   offset 0:  "KVAG" magic (4 bytes)
+ *   offset 4:  data_size, u32 LE -- bytes of ADPCM data following the header
+ *   offset 8:  sample_rate, u32 LE
+ *   offset 12: raw SPU-ADPCM data
+ * (Not the same as Sony's VAGp format, which uses a 48-byte header and a
+ * fixed 44100Hz rate -- these files use a different, smaller header and
+ * their own sample rate, so both the data offset and the SPU pitch need
+ * to be computed from it rather than assumed.) */
 static void play_sample(unsigned char *vag, unsigned int len, int voice) {
-    SpuSetTransferStartAddr(0x1010 + voice * 0x1000);
-    SpuWrite((const uint32_t *)(vag + 0x30), len - 0x30);
+    (void) len; /* the KVAG header's own data_size is used instead */
+    uint32_t data_size, sample_rate;
+    __builtin_memcpy(&data_size,   vag + 4, 4);
+    __builtin_memcpy(&sample_rate, vag + 8, 4);
+    unsigned char *data = vag + 12;
+
+    uint32_t addr = 0x1010 + voice * 0x1000;
+    SpuSetTransferStartAddr(addr);
+    SpuWrite((const uint32_t *) data, data_size);
     SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
+
+    /* SPU pitch is in 1/4096ths relative to the SPU's native 44100Hz. */
     SpuSetVoiceVolume(voice, 0x3fff, 0x3fff);
-    SpuSetVoicePitch(voice, 4096);
-    SpuSetVoiceStartAddr(voice, 0x1010 + voice * 0x1000);
+    SpuSetVoicePitch(voice, (sample_rate * 4096) / 44100);
+    SpuSetVoiceStartAddr(voice, addr);
     SpuSetVoiceADSR(voice, 0x7f, 0x0f, 0x1f, 0x0f, 0x0f);
     SpuSetKey(1, 1 << voice);
 }
