@@ -3,6 +3,7 @@
 //A good resource from ORION -> http://onorisoft.free.fr/retro.htm?psx/tutorial/tuto.htm
 
 #include <psxpad.h>
+#include <psxapi.h>
 #include <stdint.h>
 
 int	SysPad, SysPadT;
