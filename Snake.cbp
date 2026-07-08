@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="Snake" />
+		<Option pch_mode="2" />
+		<Option compiler="psxdev" />
+		<Build>
+			<Target title="Release">
+				<Option platforms="Windows;" />
+				<Option type="4" />
+				<Option compiler="psxdev" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="2D.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="3D.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Audio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Constants.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Controller.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="DATA/APPLE.TIM" />
+		<Unit filename="DATA/APPLE.TMD" />
+		<Unit filename="DATA/CURVE.TMD" />
+		<Unit filename="DATA/GRASS.TMD" />
+		<Unit filename="DATA/GROUND.TIM" />
+		<Unit filename="DATA/GROUND.TMD" />
+		<Unit filename="DATA/HEAD.TMD" />
+		<Unit filename="DATA/ROCK.TIM" />
+		<Unit filename="DATA/ROCKS.TMD" />
+		<Unit filename="DATA/SNAKE.TIM" />
+		<Unit filename="DATA/STRAIGHT.TMD" />
+		<Unit filename="DATA/TAIL.TMD" />
+		<Unit filename="DATA/TREES.TMD" />
+		<Unit filename="DATA/WOOD.TIM" />
+		<Unit filename="Font.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="LICENSEA.DAT" />
+		<Unit filename="MAIN.C">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="MAKEFILE.mak" />
+		<Unit filename="ReadCD.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="SYSTEM.CNF" />
+		<Unit filename="Snake.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="build iso and run.BAT" />
+		<Unit filename="mkpsxiso/cuesheet.xml" />
+		<Unit filename="mkpsxiso/libgcc_s_dw2-1.dll" />
+		<Unit filename="mkpsxiso/libstdc++-6.dll" />
+		<Unit filename="mkpsxiso/mkpsxiso.exe" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
