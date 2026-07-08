@@ -28,7 +28,6 @@ typedef struct {
     uint8_t mode;
 } TMD_PRIM_HDR;
 
-// Forward declaration of RenderContext to avoid circular includes
 typedef struct RenderContext RenderContext;
 
 void load_tmd(uint8_t *data);
