@@ -101,8 +101,6 @@ static void *alloc_packet(RenderContext *ctx, int z, size_t size) {
  * using PSn00bSDK's GetTimInfo() in place of Sony Gs library's
  * GsGetTimInfo()) --- */
 
-static TIM_IMAGE loaded_tim;
-
 static void loadTexture(unsigned char imageData[], TIM_IMAGE *out) {
 	GetTimInfo((const uint32_t *) imageData, out);
 	LoadImage(out->prect, out->paddr);
@@ -127,4 +125,75 @@ static void draw_fullscreen_sprite(RenderContext *ctx, TIM_IMAGE *tim, int z) {
 
 /* --- Controller input: Controller.c is reused completely unmodified. --- */
 extern int  SysPad, SysPadT;
-extern void initializePad(void
+extern void initializePad(void);
+extern void padUpdate(void);
+#define Pad1Cross PAD_CROSS
+
+/* --- SPU: minimal one-shot playback of an embedded VAG sample. --- */
+
+static void spu_init(void) {
+	SpuInit();
+	SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
+}
+
+static void play_sample(unsigned char *vag, unsigned int len, int voice) {
+	SpuSetTransferStartAddr(0x1010 + voice * 0x1000);
+	SpuWrite((const uint32_t *)(vag + 0x30), len - 0x30);
+	SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
+
+	SpuSetVoiceVolume(voice, 0x3fff, 0x3fff);
+	SpuSetVoicePitch(voice, 4096);
+	SpuSetVoiceStartAddr(voice, 0x1010 + voice * 0x1000);
+	SpuSetVoiceADSR(voice, 0x7f, 0x0f, 0x1f, 0x0f, 0x0f);
+	SpuSetKey(1, 1 << voice);
+}
+
+int main(void) {
+	RenderContext ctx;
+	TIM_IMAGE tim;
+
+	ResetGraph(0);
+	FntLoad(960, 0);
+	setup_context(&ctx);
+
+	initializePad();
+	spu_init();
+
+	/* Loading screen, drawn twice so it lands in both render buffers,
+	 * same as the original PreRender();PreRender(); double-call. */
+	loadTexture(tex_loading, &tim);
+	draw_fullscreen_sprite(&ctx, &tim, 1);
+	FntPrint(-1, "Snake (PSn00bSDK build)\n");
+	FntPrint(-1, "Press X to continue\n");
+	FntFlush(-1);
+	flip_buffers(&ctx);
+
+	draw_fullscreen_sprite(&ctx, &tim, 1);
+	flip_buffers(&ctx);
+
+	/* Wait for X, playing the bite sound as a smoke test that SPU works. */
+	for (;;) {
+		padUpdate();
+		if (SysPadT & Pad1Cross) {
+			play_sample(snd_bite1, snd_bite1_len, 0);
+			break;
+		}
+
+		draw_fullscreen_sprite(&ctx, &tim, 1);
+		flip_buffers(&ctx);
+	}
+
+	/* Controls screen. */
+	loadTexture(tex_control, &tim);
+	for (;;) {
+		padUpdate();
+		draw_fullscreen_sprite(&ctx, &tim, 1);
+		if (SysPadT & Pad1Cross) {
+			FntPrint(-1, "3D gameplay layer not yet ported -- see README\n");
+			FntFlush(-1);
+		}
+		flip_buffers(&ctx);
+	}
+
+	return 0;
+}
