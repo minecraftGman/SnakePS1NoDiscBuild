@@ -37,7 +37,6 @@ static void setup_context(RenderContext *ctx) {
     SetDefDrawEnv(&(ctx->buffers[1].draw), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     SetDefDispEnv(&(ctx->buffers[1].disp), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     
-    // Clear screen to black explicitly
     setRGB0(&(ctx->buffers[0].draw), 0, 0, 0); 
     setRGB0(&(ctx->buffers[1].draw), 0, 0, 0);
     ctx->buffers[0].draw.isbg = 1; 
@@ -124,9 +123,10 @@ int main(void) {
     SpuInit(); 
     SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     
-    // Initialize Font at a new VRAM coordinate
-    FntLoad(960, 256); 
-    font_id = FntOpen(32, 32, 200, 200, 0, 512); 
+    // NEW: Load font to a completely isolated VRAM page
+    FntLoad(640, 256); 
+    font_id = FntOpen(32, 32, 256, 200, 0, 512); 
+    DrawSync(0);
     
     loadTexture(tex_loading, &tim);
     padReset();
