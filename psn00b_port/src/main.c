@@ -7,22 +7,12 @@
 #include <psxspu.h>
 #include <psxpad.h>
 #include <inline_c.h>
-#include "tmd.h" // Now includes struct definitions
+#include "tmd.h"
 
 #define SCREEN_XRES 320
 #define SCREEN_YRES 240
 #define MAX_SNAKE   100
 #define GRID_SIZE   100
-
-#define OT_LEN      4096
-#define PACKET_LEN  32768
-#define SCREEN_XRES 320
-#define SCREEN_YRES 240
-#define MAX_SNAKE   100
-#define GRID_SIZE   100
-
-typedef struct { DISPENV disp; DRAWENV draw; uint32_t ot[OT_LEN]; uint8_t packets[PACKET_LEN]; } RenderBuffer;
-typedef struct { RenderBuffer buffers[2]; uint8_t *next_packet; int active; } RenderContext;
 
 extern unsigned char tex_loading[];
 extern unsigned char tex_control[];
@@ -117,7 +107,6 @@ int main(void) {
 
 	ResetGraph(0); setup_context(&ctx); initializePad(); SpuInit(); SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
 	
-	// Title Screens
 	loadTexture(tex_loading, &tim);
 	while (!(SysPadT & Pad1Cross)) { padUpdate(); draw_fullscreen_sprite(&ctx, &tim, 1); flip_buffers(&ctx); }
 	loadTexture(tex_control, &tim);
