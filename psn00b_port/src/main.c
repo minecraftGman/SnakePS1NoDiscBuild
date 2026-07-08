@@ -103,6 +103,50 @@ static void draw_cube(RenderContext *ctx, SVECTOR *rot, VECTOR *pos, int r, int 
     }
 }
 
+static void draw_box(RenderContext *ctx, SVECTOR *rot, VECTOR *pos, int hx, int hy, int hz, int r, int g, int b) {
+    MATRIX mtx; RotMatrix(rot, &mtx); TransMatrix(&mtx, pos);
+    gte_SetRotMatrix(&mtx); gte_SetTransMatrix(&mtx);
+    SVECTOR v[] = {{-hx,-hy,-hz},{hx,-hy,-hz},{hx,hy,-hz},{-hx,hy,-hz},{-hx,-hy,hz},{hx,-hy,hz},{hx,hy,hz},{-hx,hy,hz}};
+    static int f[][4] = {{0,1,3,2},{1,5,2,6},{5,4,6,7},{4,0,7,3},{4,5,0,1},{3,2,7,6}};
+    for (int i = 0; i < 6; i++) {
+        long p, otz; POLY_F4 *poly;
+        gte_ldv3(&v[f[i][0]], &v[f[i][1]], &v[f[i][2]]); gte_rtpt(); gte_nclip(); gte_stopz(&p);
+        if (p <= 0) continue;
+        gte_avsz3(); gte_stotz(&otz);
+        if (otz > 0 && otz < OT_LEN) {
+            poly = (POLY_F4 *)alloc_packet(ctx, otz, sizeof(POLY_F4)); setPolyF4(poly);
+            gte_stsxy0(&poly->x0); gte_stsxy1(&poly->x1); gte_stsxy2(&poly->x2);
+            gte_ldv0(&v[f[i][3]]); gte_rtps(); gte_stsxy(&poly->x3); setRGB0(poly, r, g, b);
+        }
+    }
+}
+
+/* Boundary walls -- one flattened box per side instead of one cube per grid
+ * cell, since a per-cell border (~68 cubes) would badly overflow the
+ * packet buffer. Positioned just outside the death bounds checked in the
+ * game loop (|x|>10, |y|>7), so the visible wall lines up with where the
+ * snake actually dies. */
+static void draw_borders(RenderContext *ctx) {
+    SVECTOR rot = {400, 0, 0};
+    VECTOR pos;
+    int fieldHalfX = 10 * GRID_SIZE; /* 1000 */
+    int fieldHalfY = 7  * GRID_SIZE; /* 700  */
+    int thick = 50;
+    int overlap = thick * 2; /* extend each wall a bit so corners meet with no gaps */
+
+    pos = (VECTOR){0, -(fieldHalfY + thick), 1800};
+    draw_box(ctx, &rot, &pos, fieldHalfX + overlap, thick, thick, 255, 255, 255); /* top */
+
+    pos = (VECTOR){0, fieldHalfY + thick, 1800};
+    draw_box(ctx, &rot, &pos, fieldHalfX + overlap, thick, thick, 255, 255, 255); /* bottom */
+
+    pos = (VECTOR){-(fieldHalfX + thick), 0, 1800};
+    draw_box(ctx, &rot, &pos, thick, fieldHalfY + overlap, thick, 255, 255, 255); /* left */
+
+    pos = (VECTOR){fieldHalfX + thick, 0, 1800};
+    draw_box(ctx, &rot, &pos, thick, fieldHalfY + overlap, thick, 255, 255, 255); /* right */
+}
+
 int main(void) {
     RenderContext ctx; TIM_IMAGE tim;
     int s_x[MAX_SNAKE], s_y[MAX_SNAKE], s_len = 3, dx = 1, dy = 0, f_x = 5, f_y = 5, frames = 0, dead = 0, score = 0;
@@ -144,6 +188,7 @@ int main(void) {
         }
 
         SVECTOR rot = {400, 0, 0}; VECTOR pos = {0, 0, 1800};
+        draw_borders(&ctx);
         pos.vx = f_x * GRID_SIZE; pos.vy = f_y * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 255, 0, 0);
         for (int i = 0; i < s_len; i++) { pos.vx = s_x[i] * GRID_SIZE; pos.vy = s_y[i] * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 0, 255, 0); }
         
