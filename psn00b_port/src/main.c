@@ -6,6 +6,8 @@
 #include <psxspu.h>
 #include <psxpad.h>
 #include <inline_c.h>
+#include <psxapi.h>
+#include <stdint.h>
 #include "tmd.h"
 
 #define OT_LEN      4096
