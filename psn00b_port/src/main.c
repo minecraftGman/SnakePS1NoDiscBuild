@@ -138,7 +138,7 @@ static void draw_borders(RenderContext *ctx) {
     VECTOR pos;
     int fieldHalfX = 10 * GRID_SIZE; /* 1000 */
     int fieldHalfY = 7  * GRID_SIZE; /* 700  */
-    int thick = 50;
+    int thick = 15;
     int overlap = thick * 2; /* extend each wall a bit so corners meet with no gaps */
 
     pos = (VECTOR){0, -(fieldHalfY + thick), 1800};
