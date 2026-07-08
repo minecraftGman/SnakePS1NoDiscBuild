@@ -37,6 +37,7 @@ static void setup_context(RenderContext *ctx) {
     SetDefDrawEnv(&(ctx->buffers[1].draw), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     SetDefDispEnv(&(ctx->buffers[1].disp), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     
+    // Clear the screen explicitly
     setRGB0(&(ctx->buffers[0].draw), 0, 0, 0); 
     setRGB0(&(ctx->buffers[1].draw), 0, 0, 0);
     ctx->buffers[0].draw.isbg = 1; 
@@ -72,6 +73,7 @@ static void *alloc_packet(RenderContext *ctx, int z, size_t size) {
 
 static void loadTexture(unsigned char imageData[], TIM_IMAGE *out) {
     GetTimInfo((const uint32_t *) imageData, out);
+    // Load textures to a different area than the font
     LoadImage(out->prect, out->paddr); DrawSync(0);
     if (out->mode & 0x8) { LoadImage(out->crect, out->caddr); DrawSync(0); }
 }
@@ -123,10 +125,9 @@ int main(void) {
     SpuInit(); 
     SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     
-    // NEW: Load font to a completely isolated VRAM page
-    FntLoad(640, 256); 
+    // Explicit font setup
+    FntLoad(960, 256); 
     font_id = FntOpen(32, 32, 256, 200, 0, 512); 
-    DrawSync(0);
     
     loadTexture(tex_loading, &tim);
     padReset();
@@ -156,18 +157,14 @@ int main(void) {
                 if (!dead && s_x[0] == f_x && s_y[0] == f_y) { s_len++; score += 10; f_x = (rand() % 18) - 9; f_y = (rand() % 12) - 6; play_sample(bite1_vag, bite1_vag_len, 1); }
                 for (int i = 1; i < s_len; i++) if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
             }
-            FntPrint("SCORE: %d\n", score);
+            FntPrint("SCORE: %d", score);
         } else {
-            FntPrint("GAME OVER\nSCORE: %d\nPRESS X TO RESTART\n", score);
+            FntPrint("GAME OVER\nSCORE: %d\nPRESS X TO RESTART", score);
             if (SysPadT & Pad1Cross) { dead = 0; s_len = 3; dx = 1; dy = 0; score = 0; for(int i=0;i<s_len;i++){s_x[i]=-i; s_y[i]=0;} }
         }
 
         SVECTOR rot = {400, 0, 0}; VECTOR pos = {0, 0, 1800};
-        
-        // Draw apple
         pos.vx = f_x * GRID_SIZE; pos.vy = f_y * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 255, 0, 0);
-        
-        // Draw snake
         for (int i = 0; i < s_len; i++) { pos.vx = s_x[i] * GRID_SIZE; pos.vy = s_y[i] * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 0, 255, 0); }
         
         FntFlush(font_id); 
