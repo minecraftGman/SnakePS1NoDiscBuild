@@ -39,14 +39,14 @@ jobs:
           # Download everything from the release rather than guessing a
           # filename pattern -- it's a small handful of files, and this
           # keeps the workflow working even if asset names change.
-          gh release download --repo Lameguy64/PSn00bSDK --clobber --pattern "*"
+          gh release download --repo Lameguy64/PSn00bSDK --pattern "*" --clobber
 
           ls -la .
 
           for f in *.zip; do
             [ -f "$f" ] || continue
             echo "Extracting $f"
-            unzip -qo "$f" -d "$HOME/psn00bsdk"
+            unzip -q "$f" -d "$HOME/psn00bsdk"
           done
           for f in *.tar.gz *.tgz *.tar.xz; do
             [ -f "$f" ] || continue
@@ -81,7 +81,7 @@ jobs:
         run: cmake --preset default .
 
       - name: Build
-        run: cmake --build ./build --verbose
+        run: cmake --build ./build
 
       - name: Find and upload the built executable
         run: |
