@@ -3,8 +3,11 @@
 //A good resource from ORION -> http://onorisoft.free.fr/retro.htm?psx/tutorial/tuto.htm
 
 #include <psxpad.h>
+#include <stdint.h>
 
 int	SysPad, SysPadT;
+uint8_t padbuff[2][34];
+
 #define	padCheck(_p_)	(SysPad & (_p_))
 #define	padCheckPressed(_p_)	(SysPadT & (_p_))
 #define Pad1Up			PAD_UP
@@ -37,7 +40,9 @@ int	SysPad, SysPadT;
 #define Pad2Select		PAD_SELECT
 
 void initializePad(void) {
-	InitPAD(1);
+	InitPAD(padbuff[0], 34, padbuff[1], 34);
+	StartPAD();
+	ChangeClearPAD(0);
 }
 
 void padReset(void) {
@@ -46,7 +51,11 @@ void padReset(void) {
 }
 
 void padUpdate(void){
-	int	pad = ReadPAD(0);
-	SysPadT = pad & (pad ^ SysPad);
-	SysPad = pad;
+	PADTYPE *pad = (PADTYPE*)padbuff[0];
+	int pad_state = 0;
+	if (pad->stat == 0) {
+		pad_state = ~pad->btn & 0xFFFF;
+	}
+	SysPadT = pad_state & (pad_state ^ SysPad);
+	SysPad = pad_state;
 }
