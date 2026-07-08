@@ -1,0 +1,83 @@
+name: Build PS1 Snake (disc-free)
+
+# Compiles MAIN.C -> main.exe (a PS-X EXE) using PsyQ.
+#
+# PsyQ itself is proprietary Sony-licensed tooling and is NOT stored in
+# this repo or fetched from the internet by this workflow. You need to
+# supply your own legally-obtained copy as a repository secret:
+#
+#   1. Zip your PsyQ install directory (the folder containing CC1PSX.EXE,
+#      CCPSX.EXE/.BAT, CPE2X.EXE, and the LIB/INCLUDE subfolders).
+#   2. Base64-encode it:
+#        - Linux/macOS: base64 -w0 psyq.zip > psyq.b64
+#        - Windows PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("psyq.zip")) | Out-File psyq.b64
+#   3. In your repo: Settings -> Secrets and variables -> Actions -> New
+#      repository secret, name it PSYQ_TOOLCHAIN_B64, paste the contents
+#      of psyq.b64 as the value.
+#
+# This workflow only produces main.exe as a build artifact. Patching that
+# into a BIOS dump (via biosshellpatcher.html) is a manual step you run
+# yourself with your own dumped BIOS -- that step isn't automated here,
+# since a BIOS dump is copyrighted Sony firmware and shouldn't be stored
+# in CI either.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore PsyQ toolchain from secret
+        shell: pwsh
+        env:
+          PSYQ_B64: ${{ secrets.PSYQ_TOOLCHAIN_B64 }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:PSYQ_B64)) {
+            Write-Error "PSYQ_TOOLCHAIN_B64 secret is not set. See the comments at the top of this workflow file for how to add it."
+            exit 1
+          }
+          [IO.File]::WriteAllBytes("psyq.zip", [Convert]::FromBase64String($env:PSYQ_B64))
+          Expand-Archive -Path psyq.zip -DestinationPath psyq -Force
+
+      - name: Add PsyQ to PATH
+        shell: pwsh
+        run: |
+          # Adjust this if your zip's internal folder layout differs --
+          # this assumes ccpsx.exe/cpe2x.exe sit at the top level of the
+          # extracted archive.
+          echo "$pwd\psyq" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Verify toolchain files exist
+        shell: pwsh
+        run: |
+          # Sanity-check the expected binaries are actually present before
+          # attempting a build -- I haven't run PsyQ myself to confirm its
+          # exact CLI flags, so this just checks the files exist rather
+          # than invoking them with a guessed argument.
+          $ccpsx = Get-Command ccpsx.exe -ErrorAction SilentlyContinue
+          $cpe2x = Get-Command cpe2x.exe -ErrorAction SilentlyContinue
+          if (-not $ccpsx) { Write-Error "ccpsx.exe not found on PATH -- check your zip's folder layout matches the 'Add PsyQ to PATH' step."; exit 1 }
+          if (-not $cpe2x) { Write-Error "cpe2x.exe not found on PATH -- check your zip's folder layout matches the 'Add PsyQ to PATH' step."; exit 1 }
+          Write-Host "Found: $($ccpsx.Source)"
+          Write-Host "Found: $($cpe2x.Source)"
+
+      - name: Build main.exe
+        shell: cmd
+        run: |
+          ccpsx -Xo0x80040000 -Wall -O2 MAIN.C -o main.cpe
+          cpe2x /ca main.cpe
+
+      - name: Upload main.exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snake-main-exe
+          path: main.exe
+          if-no-files-found: error
