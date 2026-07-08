@@ -36,11 +36,21 @@ static void setup_context(RenderContext *ctx) {
     SetDefDispEnv(&(ctx->buffers[0].disp), 0, 0, SCREEN_XRES, SCREEN_YRES);
     SetDefDrawEnv(&(ctx->buffers[1].draw), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     SetDefDispEnv(&(ctx->buffers[1].disp), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
-    setRGB0(&(ctx->buffers[0].draw), 0, 0, 0); setRGB0(&(ctx->buffers[1].draw), 0, 0, 0);
-    ctx->buffers[0].draw.isbg = 1; ctx->buffers[1].draw.isbg = 1;
-    ctx->active = 0; ctx->next_packet = ctx->buffers[0].packets;
-    ClearOTagR(ctx->buffers[0].ot, OT_LEN); SetDispMask(1);
-    InitGeom(); gte_SetGeomOffset(SCREEN_XRES/2, SCREEN_YRES/2); gte_SetGeomScreen(256);
+    
+    // Set clear color to black
+    setRGB0(&(ctx->buffers[0].draw), 0, 0, 0); 
+    setRGB0(&(ctx->buffers[1].draw), 0, 0, 0);
+    ctx->buffers[0].draw.isbg = 1; 
+    ctx->buffers[1].draw.isbg = 1;
+    
+    ctx->active = 0; 
+    ctx->next_packet = ctx->buffers[0].packets;
+    ClearOTagR(ctx->buffers[0].ot, OT_LEN); 
+    SetDispMask(1);
+    
+    InitGeom(); 
+    gte_SetGeomOffset(SCREEN_XRES/2, SCREEN_YRES/2); 
+    gte_SetGeomScreen(256);
 }
 
 static void flip_buffers(RenderContext *ctx) {
@@ -48,7 +58,8 @@ static void flip_buffers(RenderContext *ctx) {
     RenderBuffer *draw = &(ctx->buffers[ctx->active]);
     PutDispEnv(&(ctx->buffers[ctx->active ^ 1].disp));
     DrawOTagEnv(&(draw->ot[OT_LEN - 1]), &(draw->draw));
-    ctx->active ^= 1; ctx->next_packet = ctx->buffers[ctx->active].packets;
+    ctx->active ^= 1; 
+    ctx->next_packet = ctx->buffers[ctx->active].packets;
     ClearOTagR(ctx->buffers[ctx->active].ot, OT_LEN);
 }
 
@@ -107,10 +118,14 @@ int main(void) {
     RenderContext ctx; TIM_IMAGE tim;
     int s_x[MAX_SNAKE], s_y[MAX_SNAKE], s_len = 3, dx = 1, dy = 0, f_x = 5, f_y = 5, frames = 0, dead = 0, score = 0;
 
-    ResetGraph(0); setup_context(&ctx); initializePad(); SpuInit(); SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
+    ResetGraph(0); 
+    setup_context(&ctx); 
+    initializePad(); 
+    SpuInit(); 
+    SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     
-    // Setup font
-    FntLoad(320, 0); 
+    // Standard font location in VRAM
+    FntLoad(960, 256); 
     font_id = FntOpen(16, 16, 288, 208, 0, 512); 
     
     loadTexture(tex_loading, &tim);
@@ -125,15 +140,18 @@ int main(void) {
 
     for (;;) {
         padUpdate();
+        
         if (!dead) {
             if ((SysPadT & Pad1Up) && dy == 0) { dx = 0; dy = -1; }
             if ((SysPadT & Pad1Down) && dy == 0) { dx = 0; dy = 1; }
             if ((SysPadT & Pad1Left) && dx == 0) { dx = -1; dy = 0; }
             if ((SysPadT & Pad1Right) && dx == 0) { dx = 1; dy = 0; }
+            
             if (++frames > 10) {
                 frames = 0;
                 for (int i = s_len - 1; i > 0; i--) { s_x[i] = s_x[i-1]; s_y[i] = s_y[i-1]; }
                 s_x[0] += dx; s_y[0] += dy;
+                
                 if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
                 if (!dead && s_x[0] == f_x && s_y[0] == f_y) { s_len++; score += 10; f_x = (rand() % 18) - 9; f_y = (rand() % 12) - 6; play_sample(bite1_vag, bite1_vag_len, 1); }
                 for (int i = 1; i < s_len; i++) if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
