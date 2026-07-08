@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <psxgpu.h>
 #include <psxgte.h>
 #include <psxetc.h>
@@ -20,7 +21,7 @@ typedef struct {
 	uint8_t  packets[PACKET_LEN];
 } RenderBuffer;
 
-typedef struct {
+typedef struct RenderContext {
 	RenderBuffer buffers[2];
 	uint8_t      *next_packet;
 	int          active;
@@ -57,8 +58,8 @@ static void setup_context(RenderContext *ctx) {
 	SetDispMask(1);
 
 	InitGeom();
-	SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2);
-	SetGeomScreen(256);
+	gte_SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2);
+	gte_SetGeomScreen(256);
 }
 
 static void flip_buffers(RenderContext *ctx) {
@@ -142,8 +143,8 @@ static void draw_cube(RenderContext *ctx, SVECTOR *rotation, VECTOR *translation
 	MATRIX mtx;
 	RotMatrix(rotation, &mtx);
 	TransMatrix(&mtx, translation);
-	SetRotMatrix(&mtx);
-	SetTransMatrix(&mtx);
+	gte_SetRotMatrix(&mtx);
+	gte_SetTransMatrix(&mtx);
 
 	for (int i = 0; i < 6; i++) {
 		long p, otz;
@@ -267,15 +268,15 @@ int main(void) {
 		}
 
 		VECTOR pos;
-		pos.z = 1800;
+		pos.vz = 1800;
 
-		pos.x = f_x * GRID_SIZE;
-		pos.y = f_y * GRID_SIZE;
+		pos.vx = f_x * GRID_SIZE;
+		pos.vy = f_y * GRID_SIZE;
 		draw_cube(&ctx, &rot, &pos, 255, 0, 0);
 
 		for (int i = 0; i < s_len; i++) {
-			pos.x = s_x[i] * GRID_SIZE;
-			pos.y = s_y[i] * GRID_SIZE;
+			pos.vx = s_x[i] * GRID_SIZE;
+			pos.vy = s_y[i] * GRID_SIZE;
 			draw_cube(&ctx, &rot, &pos, 0, 255, 0);
 		}
 
