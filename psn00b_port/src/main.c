@@ -115,11 +115,19 @@ static void loadTexture(unsigned char imageData[], TIM_IMAGE *out) {
 static void draw_fullscreen_sprite(RenderContext *ctx, TIM_IMAGE *tim, int z) {
 	POLY_FT4 *poly = (POLY_FT4 *) alloc_packet(ctx, z, sizeof(POLY_FT4));
 
+	int pmode = tim->mode & 0x3;
+	int pix_w = tim->prect->w;
+	if (pmode == 0) pix_w *= 4;
+	else if (pmode == 1) pix_w *= 2;
+
+	if (pix_w > 255) pix_w = 255;
+	int pix_h = tim->prect->h > 255 ? 255 : tim->prect->h;
+
 	setPolyFT4(poly);
 	setXYWH(poly, 0, 0, SCREEN_XRES, SCREEN_YRES);
-	setUVWH(poly, 0, 0, tim->prect->w, tim->prect->h);
+	setUVWH(poly, 0, 0, pix_w, pix_h);
 	setRGB0(poly, 128, 128, 128);
-	poly->tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
+	poly->tpage = getTPage(pmode, 0, tim->prect->x, tim->prect->y);
 	poly->clut  = getClut(tim->crect->x, tim->crect->y);
 }
 
@@ -154,6 +162,7 @@ int main(void) {
 
 	ResetGraph(0);
 	FntLoad(960, 0);
+	FntOpen(0, 10, 320, 224, 0, 100);
 	setup_context(&ctx);
 
 	initializePad();
@@ -163,9 +172,9 @@ int main(void) {
 	 * same as the original PreRender();PreRender(); double-call. */
 	loadTexture(tex_loading, &tim);
 	draw_fullscreen_sprite(&ctx, &tim, 1);
-	FntPrint(-1, "Snake (PSn00bSDK build)\n");
-	FntPrint(-1, "Press X to continue\n");
-	FntFlush(-1);
+	FntPrint(0, "Snake (PSn00bSDK build)\n");
+	FntPrint(0, "Press X to continue\n");
+	FntFlush(0);
 	flip_buffers(&ctx);
 
 	draw_fullscreen_sprite(&ctx, &tim, 1);
@@ -189,8 +198,8 @@ int main(void) {
 		padUpdate();
 		draw_fullscreen_sprite(&ctx, &tim, 1);
 		if (SysPadT & Pad1Cross) {
-			FntPrint(-1, "3D gameplay layer not yet ported -- see README\n");
-			FntFlush(-1);
+			FntPrint(0, "3D gameplay layer not yet ported -- see README\n");
+			FntFlush(0);
 		}
 		flip_buffers(&ctx);
 	}
