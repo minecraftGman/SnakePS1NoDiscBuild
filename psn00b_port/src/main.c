@@ -187,12 +187,12 @@ int main(void) {
 
     /* SpuInit() does not guarantee the master volume is actually up --
      * without this, every voice can be correctly configured and keyed on
-     * and still produce no audible output. */
-    SpuCommonAttr masterAttr;
-    masterAttr.mask = SPU_COMMON_MVOLL | SPU_COMMON_MVOLR;
-    masterAttr.mvol.left = 0x3fff;
-    masterAttr.mvol.right = 0x3fff;
-    SpuSetCommonAttr(&masterAttr);
+     * and still produce no audible output.
+     * NOTE: PSn00bSDK does not use Sony's struct+mask SpuSetCommonAttr()/
+     * SpuCommonAttr API (that build error is what told us this) -- it uses
+     * individual SpuSetCommon*() setters instead, same convention as the
+     * SpuSetVoice*() functions already used below in play_sample(). */
+    SpuSetCommonMasterVolume(0x3fff, 0x3fff);
     
     FntLoad(960, 256); 
     font_id = FntOpen(32, 32, 256, 200, 0, 512); 
