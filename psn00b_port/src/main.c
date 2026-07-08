@@ -108,11 +108,13 @@ int main(void) {
 	ResetGraph(0); setup_context(&ctx); initializePad(); SpuInit(); SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     FntLoad(960, 256); FntOpen(16, 16, 288, 208, 0, 512);
 	
+    // Safer title screen loops
 	loadTexture(tex_loading, &tim);
-    padReset();
+    for(int i = 0; i < 30; i++) { padUpdate(); flip_buffers(&ctx); } // Wait for input release
 	while (!(SysPadT & Pad1Cross)) { padUpdate(); draw_fullscreen_sprite(&ctx, &tim, 1); flip_buffers(&ctx); }
+    
 	loadTexture(tex_control, &tim);
-    padReset();
+    for(int i = 0; i < 30; i++) { padUpdate(); flip_buffers(&ctx); } // Wait for input release
 	while (!(SysPadT & Pad1Cross)) { padUpdate(); draw_fullscreen_sprite(&ctx, &tim, 1); flip_buffers(&ctx); }
 
 	for (;;) {
@@ -135,11 +137,11 @@ int main(void) {
             FntPrint("GAME OVER\nSCORE: %d\nPRESS X TO RESTART\n", score);
             if (SysPadT & Pad1Cross) { dead = 0; s_len = 3; dx = 1; dy = 0; score = 0; for(int i=0;i<s_len;i++){s_x[i]=-i; s_y[i]=0;} }
         }
-        FntFlush(-1);
 
 		SVECTOR rot = {400, 0, 0}; VECTOR pos = {0, 0, 1800};
 		pos.vx = f_x * GRID_SIZE; pos.vy = f_y * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 255, 0, 0);
 		for (int i = 0; i < s_len; i++) { pos.vx = s_x[i] * GRID_SIZE; pos.vy = s_y[i] * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 0, 255, 0); }
+        FntFlush(-1); // Important: Flush font after drawing objects
 		flip_buffers(&ctx);
 	}
 }
