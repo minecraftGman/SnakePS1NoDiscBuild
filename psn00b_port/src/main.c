@@ -29,8 +29,13 @@ typedef struct RenderContext {
 
 extern unsigned char tex_loading[];
 extern unsigned char tex_control[];
-extern unsigned char snd_bite1[];
-extern unsigned int  snd_bite1_len;
+
+extern unsigned char bite1_vag[];
+extern unsigned int  bite1_vag_len;
+extern unsigned char die1_vag[];
+extern unsigned int  die1_vag_len;
+extern unsigned char jungle_vag[];
+extern unsigned int  jungle_vag_len;
 
 extern int  SysPad, SysPadT;
 extern void initializePad(void);
@@ -201,6 +206,8 @@ int main(void) {
 	initializePad();
 	spu_init();
 
+	play_sample(jungle_vag, jungle_vag_len, 0);
+
 	loadTexture(tex_loading, &tim);
 	draw_fullscreen_sprite(&ctx, &tim, 1);
 	flip_buffers(&ctx);
@@ -209,10 +216,7 @@ int main(void) {
 
 	for (;;) {
 		padUpdate();
-		if (SysPadT & Pad1Cross) {
-			play_sample(snd_bite1, snd_bite1_len, 0);
-			break;
-		}
+		if (SysPadT & Pad1Cross) break;
 		draw_fullscreen_sprite(&ctx, &tim, 1);
 		flip_buffers(&ctx);
 	}
@@ -246,18 +250,24 @@ int main(void) {
 				s_x[0] += dx;
 				s_y[0] += dy;
 
-				if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) dead = 1;
+				if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) {
+					if (!dead) play_sample(die1_vag, die1_vag_len, 2);
+					dead = 1;
+				}
 
 				if (!dead && s_x[0] == f_x && s_y[0] == f_y) {
 					if (s_len < MAX_SNAKE) s_len++;
 					score += 10;
 					f_x = (rand() % 18) - 9;
 					f_y = (rand() % 12) - 6;
-					play_sample(snd_bite1, snd_bite1_len, 0);
+					play_sample(bite1_vag, bite1_vag_len, 1);
 				}
 
 				for (int i = 1; i < s_len; i++) {
-					if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) dead = 1;
+					if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) {
+						if (!dead) play_sample(die1_vag, die1_vag_len, 2);
+						dead = 1;
+					}
 				}
 			}
 
