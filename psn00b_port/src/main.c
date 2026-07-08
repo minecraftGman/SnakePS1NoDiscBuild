@@ -9,12 +9,12 @@
  * models actually use are already identified).
  *
  * What this milestone proves out end-to-end, for real, in CI:
- *   - screen/double-buffer setup (psxgpu.h)
- *   - the embedded (no-CD) texture assets displaying as 2D sprites
- *     (the game's original loading screen + controls screen)
- *   - controller input (Controller.c, reused completely unmodified --
- *     PadInit()/PadRead() is identical between PsyQ and PSn00bSDK)
- *   - SPU sound effect playback from the embedded VAG data
+ * - screen/double-buffer setup (psxgpu.h)
+ * - the embedded (no-CD) texture assets displaying as 2D sprites
+ * (the game's original loading screen + controls screen)
+ * - controller input (Controller.c, reused completely unmodified --
+ * PadInit()/PadRead() is identical between PsyQ and PSn00bSDK)
+ * - SPU sound effect playback from the embedded VAG data
  *
  * Once this builds and boots correctly, the 3D gameplay layer gets added
  * on top of this same foundation.
@@ -26,6 +26,7 @@
 #include <psxgte.h>
 #include <psxetc.h>
 #include <psxspu.h>
+#include <psxpad.h>
 #include <inline_c.h>
 
 #define OT_LEN      8
@@ -103,7 +104,7 @@ static void *alloc_packet(RenderContext *ctx, int z, size_t size) {
 static TIM_IMAGE loaded_tim;
 
 static void loadTexture(unsigned char imageData[], TIM_IMAGE *out) {
-	GetTimInfo((unsigned int *) imageData, out);
+	GetTimInfo((const uint32_t *) imageData, out);
 	LoadImage(out->prect, out->paddr);
 	DrawSync(0);
 	if (out->mode & 0x8) {
@@ -128,7 +129,7 @@ static void draw_fullscreen_sprite(RenderContext *ctx, TIM_IMAGE *tim, int z) {
 extern int  SysPad, SysPadT;
 extern void initializePad(void);
 extern void padUpdate(void);
-#define Pad1Cross _PAD(0, PADRdown)
+#define Pad1Cross PAD_CROSS
 
 /* --- SPU: minimal one-shot playback of an embedded VAG sample. --- */
 
@@ -139,22 +140,13 @@ static void spu_init(void) {
 
 static void play_sample(unsigned char *vag, unsigned int len, int voice) {
 	SpuSetTransferStartAddr(0x1010 + voice * 0x1000);
-	SpuWrite(vag + 0x30, len - 0x30);
+	SpuWrite((const uint32_t *)(vag + 0x30), len - 0x30);
 	SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
 
-	SpuVoiceAttr attr;
-	attr.mask   = SPU_VOICE_VOLL | SPU_VOICE_VOLR | SPU_VOICE_PITCH |
-	              SPU_VOICE_WDSA | SPU_VOICE_ADSR_AMODE | SPU_VOICE_ADSR_SMODE |
-	              SPU_VOICE_ADSR_RMODE | SPU_VOICE_ADSR_AR | SPU_VOICE_ADSR_DR |
-	              SPU_VOICE_ADSR_SR | SPU_VOICE_ADSR_RR | SPU_VOICE_ADSR_SL;
-	attr.voice  = 1 << voice;
-	attr.volume.left  = 0x3fff;
-	attr.volume.right = 0x3fff;
-	attr.pitch  = 4096;
-	attr.addr   = 0x1010 + voice * 0x1000;
-	attr.adsr1  = 0x00ff;
-	attr.adsr2  = 0x0000;
-	SpuSetVoiceAttr(&attr);
+	SpuSetVoiceVolume(voice, 0x3fff, 0x3fff);
+	SpuSetVoicePitch(voice, 4096);
+	SpuSetVoiceStartAddr(voice, 0x1010 + voice * 0x1000);
+	SpuSetVoiceADSR(voice, 0x00ff, 0x0000);
 	SpuSetKey(1, 1 << voice);
 }
 
