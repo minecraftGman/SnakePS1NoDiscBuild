@@ -7,7 +7,12 @@
 #include <psxspu.h>
 #include <psxpad.h>
 #include <inline_c.h>
-#include "tmd.h"
+#include "tmd.h" // Now includes struct definitions
+
+#define SCREEN_XRES 320
+#define SCREEN_YRES 240
+#define MAX_SNAKE   100
+#define GRID_SIZE   100
 
 #define OT_LEN      4096
 #define PACKET_LEN  32768
