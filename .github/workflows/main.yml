@@ -81,7 +81,7 @@ jobs:
         run: cmake --preset default .
 
       - name: Build
-        run: cmake --build ./build
+        run: cmake --build ./build --verbose
 
       - name: Find and upload the built executable
         run: |
