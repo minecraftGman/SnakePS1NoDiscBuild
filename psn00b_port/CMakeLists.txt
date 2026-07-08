@@ -13,6 +13,12 @@ if(EXISTS "${LD_SCRIPT_PATH}")
     file(WRITE "${LD_SCRIPT_PATH}" "${LD_CONTENT}")
 endif()
 
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/AssetsAudio.c
+    COMMAND bash -c "xxd -i bite1.vag > src/AssetsAudio.c && xxd -i die1.vag >> src/AssetsAudio.c && xxd -i jungle.vag >> src/AssetsAudio.c"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 psn00bsdk_add_executable(snake STATIC
 	src/main.c
 	src/Controller.c
