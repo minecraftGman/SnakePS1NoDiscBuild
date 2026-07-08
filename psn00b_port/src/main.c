@@ -127,7 +127,14 @@ static void draw_box(RenderContext *ctx, SVECTOR *rot, VECTOR *pos, int hx, int 
  * game loop (|x|>10, |y|>7), so the visible wall lines up with where the
  * snake actually dies. */
 static void draw_borders(RenderContext *ctx) {
-    SVECTOR rot = {400, 0, 0};
+    /* No tilt here on purpose -- the {400,0,0} rotation used for the small
+     * snake/apple cubes rotates around the X axis, which is harmless for a
+     * roughly-cube-shaped object but badly distorts anything long on the Y
+     * axis (like the left/right walls): it swings that long extent into
+     * depth (Z), producing a trapezoid that recedes into the distance
+     * instead of a straight bar. Leaving the walls unrotated keeps them
+     * as clean rectangles. */
+    SVECTOR rot = {0, 0, 0};
     VECTOR pos;
     int fieldHalfX = 10 * GRID_SIZE; /* 1000 */
     int fieldHalfY = 7  * GRID_SIZE; /* 700  */
