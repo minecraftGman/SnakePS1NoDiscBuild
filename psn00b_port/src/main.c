@@ -83,23 +83,26 @@ static void draw_fullscreen_sprite(RenderContext *ctx, TIM_IMAGE *tim, int z) {
  * fixed 44100Hz rate -- these files use a different, smaller header and
  * their own sample rate, so both the data offset and the SPU pitch need
  * to be computed from it rather than assumed.) */
-static void play_sample(unsigned char *vag, unsigned int len, int voice) {
-    (void) len; /* the KVAG header's own data_size is used instead */
-    uint32_t data_size, sample_rate;
-    __builtin_memcpy(&data_size,   vag + 4, 4);
-    __builtin_memcpy(&sample_rate, vag + 8, 4);
-    unsigned char *data = vag + 12;
-
+/* vag/len point at raw SPU-ADPCM data with NO header (psxavenc's `-t spu`
+ * output) -- the whole buffer is audio data. sample_rate is passed in
+ * directly since there's nothing in the file to read it from. */
+static void play_sample(unsigned char *vag, unsigned int len, uint32_t sample_rate, int voice) {
     uint32_t addr = 0x1010 + voice * 0x1000;
     SpuSetTransferStartAddr(addr);
-    SpuWrite((const uint32_t *) data, data_size);
+    SpuWrite((const uint32_t *) vag, len);
     SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
 
     /* SPU pitch is in 1/4096ths relative to the SPU's native 44100Hz. */
     SpuSetVoiceVolume(voice, 0x3fff, 0x3fff);
     SpuSetVoicePitch(voice, (sample_rate * 4096) / 44100);
     SpuSetVoiceStartAddr(voice, addr);
-    SpuSetVoiceADSR(voice, 0x7f, 0x0f, 0x1f, 0x0f, 0x0f);
+    /* ar=0 (fastest attack -- this field is an exponent/shift, so 0x7f
+     * previously meant the SLOWEST possible ramp, likely too slow for a
+     * short one-shot sample to ever become audible), dr=0 (no decay
+     * curve), sr=0 (unused while sustaining at max), rr=0 (fast release),
+     * sl=0xf (hold at full volume) -- basically disables envelope shaping
+     * so the sample's own waveform provides the shape. */
+    SpuSetVoiceADSR(voice, 0x00, 0x00, 0x00, 0x00, 0x0f);
     SpuSetKey(1, 1 << voice);
 }
 
@@ -218,9 +221,9 @@ int main(void) {
                 frames = 0;
                 for (int i = s_len - 1; i > 0; i--) { s_x[i] = s_x[i-1]; s_y[i] = s_y[i-1]; }
                 s_x[0] += dx; s_y[0] += dy;
-                if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
-                if (!dead && s_x[0] == f_x && s_y[0] == f_y) { s_len++; score += 10; f_x = (rand() % 18) - 9; f_y = (rand() % 12) - 6; play_sample(bite1_vag, bite1_vag_len, 1); }
-                for (int i = 1; i < s_len; i++) if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
+                if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) { play_sample(die1_vag, die1_vag_len, 22050, 2); dead = 1; }
+                if (!dead && s_x[0] == f_x && s_y[0] == f_y) { s_len++; score += 10; f_x = (rand() % 18) - 9; f_y = (rand() % 12) - 6; play_sample(bite1_vag, bite1_vag_len, 22050, 1); }
+                for (int i = 1; i < s_len; i++) if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) { play_sample(die1_vag, die1_vag_len, 22050, 2); dead = 1; }
             }
             FntPrint(font_id, "SCORE: %d\n", score);
         } else {
