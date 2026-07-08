@@ -36,18 +36,14 @@ static void setup_context(RenderContext *ctx) {
     SetDefDispEnv(&(ctx->buffers[0].disp), 0, 0, SCREEN_XRES, SCREEN_YRES);
     SetDefDrawEnv(&(ctx->buffers[1].draw), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     SetDefDispEnv(&(ctx->buffers[1].disp), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
-    
-    // Clear the screen explicitly
     setRGB0(&(ctx->buffers[0].draw), 0, 0, 0); 
     setRGB0(&(ctx->buffers[1].draw), 0, 0, 0);
     ctx->buffers[0].draw.isbg = 1; 
     ctx->buffers[1].draw.isbg = 1;
-    
     ctx->active = 0; 
     ctx->next_packet = ctx->buffers[0].packets;
     ClearOTagR(ctx->buffers[0].ot, OT_LEN); 
     SetDispMask(1);
-    
     InitGeom(); 
     gte_SetGeomOffset(SCREEN_XRES/2, SCREEN_YRES/2); 
     gte_SetGeomScreen(256);
@@ -73,7 +69,7 @@ static void *alloc_packet(RenderContext *ctx, int z, size_t size) {
 
 static void loadTexture(unsigned char imageData[], TIM_IMAGE *out) {
     GetTimInfo((const uint32_t *) imageData, out);
-    // Load textures to a different area than the font
+    // Loading at specific safe addresses
     LoadImage(out->prect, out->paddr); DrawSync(0);
     if (out->mode & 0x8) { LoadImage(out->crect, out->caddr); DrawSync(0); }
 }
@@ -125,9 +121,9 @@ int main(void) {
     SpuInit(); 
     SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     
-    // Explicit font setup
+    // Set VRAM for font to (960, 256) - standard PS1 BIOS font
     FntLoad(960, 256); 
-    font_id = FntOpen(32, 32, 256, 200, 0, 512); 
+    font_id = FntOpen(0, 0, 320, 240, 0, 512); 
     
     loadTexture(tex_loading, &tim);
     padReset();
@@ -141,18 +137,15 @@ int main(void) {
 
     for (;;) {
         padUpdate();
-        
         if (!dead) {
             if ((SysPadT & Pad1Up) && dy == 0) { dx = 0; dy = -1; }
             if ((SysPadT & Pad1Down) && dy == 0) { dx = 0; dy = 1; }
             if ((SysPadT & Pad1Left) && dx == 0) { dx = -1; dy = 0; }
             if ((SysPadT & Pad1Right) && dx == 0) { dx = 1; dy = 0; }
-            
             if (++frames > 10) {
                 frames = 0;
                 for (int i = s_len - 1; i > 0; i--) { s_x[i] = s_x[i-1]; s_y[i] = s_y[i-1]; }
                 s_x[0] += dx; s_y[0] += dy;
-                
                 if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
                 if (!dead && s_x[0] == f_x && s_y[0] == f_y) { s_len++; score += 10; f_x = (rand() % 18) - 9; f_y = (rand() % 12) - 6; play_sample(bite1_vag, bite1_vag_len, 1); }
                 for (int i = 1; i < s_len; i++) if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
@@ -167,7 +160,8 @@ int main(void) {
         pos.vx = f_x * GRID_SIZE; pos.vy = f_y * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 255, 0, 0);
         for (int i = 0; i < s_len; i++) { pos.vx = s_x[i] * GRID_SIZE; pos.vy = s_y[i] * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 0, 255, 0); }
         
-        FntFlush(font_id); 
+        // Final flush using the active buffer's OT
+        FntFlush(ctx.buffers[ctx.active].ot);
         flip_buffers(&ctx);
     }
 }
