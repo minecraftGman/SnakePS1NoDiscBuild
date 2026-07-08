@@ -46,7 +46,7 @@ jobs:
           for f in *.zip; do
             [ -f "$f" ] || continue
             echo "Extracting $f"
-            unzip -q "$f" -d "$HOME/psn00bsdk"
+            unzip -q -o "$f" -d "$HOME/psn00bsdk"
           done
           for f in *.tar.gz *.tgz *.tar.xz; do
             [ -f "$f" ] || continue
