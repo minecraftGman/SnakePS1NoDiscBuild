@@ -16,29 +16,14 @@
 #define MAX_SNAKE   100
 #define GRID_SIZE   100
 
-typedef struct {
-	DISPENV  disp;
-	DRAWENV  draw;
-	uint32_t ot[OT_LEN];
-	uint8_t  packets[PACKET_LEN];
-} RenderBuffer;
-
-typedef struct RenderContext {
-	RenderBuffer buffers[2];
-	uint8_t      *next_packet;
-	int          active;
-} RenderContext;
+typedef struct { DISPENV disp; DRAWENV draw; uint32_t ot[OT_LEN]; uint8_t packets[PACKET_LEN]; } RenderBuffer;
+typedef struct { RenderBuffer buffers[2]; uint8_t *next_packet; int active; } RenderContext;
 
 extern unsigned char tex_loading[];
 extern unsigned char tex_control[];
-
-/* Audio asset externs */
-extern unsigned char bite1_vag[];
-extern unsigned int  bite1_vag_len;
-extern unsigned char die1_vag[];
-extern unsigned int  die1_vag_len;
-extern unsigned char jungle_sounds_vag[];
-extern unsigned int  jungle_sounds_vag_len;
+extern unsigned char bite1_vag[]; extern unsigned int bite1_vag_len;
+extern unsigned char die1_vag[]; extern unsigned int die1_vag_len;
+extern unsigned char jungle_sounds_vag[]; extern unsigned int jungle_sounds_vag_len;
 
 extern int  SysPad, SysPadT;
 extern void initializePad(void);
@@ -54,32 +39,20 @@ static void setup_context(RenderContext *ctx) {
 	SetDefDispEnv(&(ctx->buffers[0].disp), 0, 0, SCREEN_XRES, SCREEN_YRES);
 	SetDefDrawEnv(&(ctx->buffers[1].draw), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
 	SetDefDispEnv(&(ctx->buffers[1].disp), 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
-
-	setRGB0(&(ctx->buffers[0].draw), 0, 0, 0);
-	setRGB0(&(ctx->buffers[1].draw), 0, 0, 0);
-	ctx->buffers[0].draw.isbg = 1;
-	ctx->buffers[1].draw.isbg = 1;
-
-	ctx->active = 0;
-	ctx->next_packet = ctx->buffers[0].packets;
-	ClearOTagR(ctx->buffers[0].ot, OT_LEN);
-	SetDispMask(1);
-
-	InitGeom();
-	gte_SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2);
-	gte_SetGeomScreen(256);
+	setRGB0(&(ctx->buffers[0].draw), 0, 0, 0); setRGB0(&(ctx->buffers[1].draw), 0, 0, 0);
+	ctx->buffers[0].draw.isbg = 1; ctx->buffers[1].draw.isbg = 1;
+	ctx->active = 0; ctx->next_packet = ctx->buffers[0].packets;
+	ClearOTagR(ctx->buffers[0].ot, OT_LEN); SetDispMask(1);
+	InitGeom(); gte_SetGeomOffset(SCREEN_XRES/2, SCREEN_YRES/2); gte_SetGeomScreen(256);
 }
 
 static void flip_buffers(RenderContext *ctx) {
-	DrawSync(0);
-	VSync(0);
-	RenderBuffer *draw_buf = &(ctx->buffers[ctx->active]);
-	RenderBuffer *disp_buf = &(ctx->buffers[ctx->active ^ 1]);
-	PutDispEnv(&(disp_buf->disp));
-	DrawOTagEnv(&(draw_buf->ot[OT_LEN - 1]), &(draw_buf->draw));
-	ctx->active ^= 1;
-	ctx->next_packet = disp_buf->packets;
-	ClearOTagR(disp_buf->ot, OT_LEN);
+	DrawSync(0); VSync(0);
+	RenderBuffer *draw = &(ctx->buffers[ctx->active]);
+	PutDispEnv(&(ctx->buffers[ctx->active ^ 1].disp));
+	DrawOTagEnv(&(draw->ot[OT_LEN - 1]), &(draw->draw));
+	ctx->active ^= 1; ctx->next_packet = ctx->buffers[ctx->active].packets;
+	ClearOTagR(ctx->buffers[ctx->active].ot, OT_LEN);
 }
 
 static void *alloc_packet(RenderContext *ctx, int z, size_t size) {
@@ -92,27 +65,16 @@ static void *alloc_packet(RenderContext *ctx, int z, size_t size) {
 
 static void loadTexture(unsigned char imageData[], TIM_IMAGE *out) {
 	GetTimInfo((const uint32_t *) imageData, out);
-	LoadImage(out->prect, out->paddr);
-	DrawSync(0);
-	if (out->mode & 0x8) {
-		LoadImage(out->crect, out->caddr);
-		DrawSync(0);
-	}
+	LoadImage(out->prect, out->paddr); DrawSync(0);
+	if (out->mode & 0x8) { LoadImage(out->crect, out->caddr); DrawSync(0); }
 }
 
 static void draw_fullscreen_sprite(RenderContext *ctx, TIM_IMAGE *tim, int z) {
 	POLY_FT4 *poly = (POLY_FT4 *) alloc_packet(ctx, z, sizeof(POLY_FT4));
-	setPolyFT4(poly);
-	setXYWH(poly, 0, 0, SCREEN_XRES, SCREEN_YRES);
-	setUVWH(poly, 0, 0, 255, 255);
-	setRGB0(poly, 128, 128, 128);
+	setPolyFT4(poly); setXYWH(poly, 0, 0, SCREEN_XRES, SCREEN_YRES);
+	setUVWH(poly, 0, 0, 255, 255); setRGB0(poly, 128, 128, 128);
 	poly->tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
 	poly->clut  = getClut(tim->crect->x, tim->crect->y);
-}
-
-static void spu_init(void) {
-	SpuInit();
-	SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
 }
 
 static void play_sample(unsigned char *vag, unsigned int len, int voice) {
@@ -126,66 +88,35 @@ static void play_sample(unsigned char *vag, unsigned int len, int voice) {
 	SpuSetKey(1, 1 << voice);
 }
 
-static SVECTOR cube_verts[] = {
-	{-50, -50, -50}, { 50, -50, -50}, { 50,  50, -50}, {-50,  50, -50},
-	{-50, -50,  50}, { 50, -50,  50}, { 50,  50,  50}, {-50,  50,  50}
-};
-
-static int cube_faces[][4] = {
-	{0, 1, 3, 2}, {1, 5, 2, 6}, {5, 4, 6, 7},
-	{4, 0, 7, 3}, {4, 5, 0, 1}, {3, 2, 7, 6}
-};
-
-static void draw_cube(RenderContext *ctx, SVECTOR *rotation, VECTOR *translation, int r, int g, int b) {
-	MATRIX mtx;
-	RotMatrix(rotation, &mtx);
-	TransMatrix(&mtx, translation);
-	gte_SetRotMatrix(&mtx);
-	gte_SetTransMatrix(&mtx);
-
-	for (int i = 0; i < 6; i++) {
-		long p, otz;
-		POLY_F4 *poly;
-
-		gte_ldv3(&cube_verts[cube_faces[i][0]], &cube_verts[cube_faces[i][1]], &cube_verts[cube_faces[i][2]]);
-		gte_rtpt();
-		gte_nclip();
-		gte_stopz(&p);
-
-		if (p <= 0) continue;
-
-		gte_avsz3();
-		gte_stotz(&otz);
-
-		if (otz > 0 && otz < OT_LEN) {
-			poly = (POLY_F4 *)alloc_packet(ctx, otz, sizeof(POLY_F4));
-			setPolyF4(poly);
-			gte_stsxy0(&poly->x0);
-			gte_stsxy1(&poly->x1);
-			gte_stsxy2(&poly->x2);
-			gte_ldv0(&cube_verts[cube_faces[i][3]]);
-			gte_rtps();
-			gte_stsxy(&poly->x3);
-			setRGB0(poly, r, g, b);
-		}
-	}
+static void draw_cube(RenderContext *ctx, SVECTOR *rot, VECTOR *pos, int r, int g, int b) {
+    MATRIX mtx; RotMatrix(rot, &mtx); TransMatrix(&mtx, pos);
+    gte_SetRotMatrix(&mtx); gte_SetTransMatrix(&mtx);
+    static SVECTOR v[] = {{-50,-50,-50},{50,-50,-50},{50,50,-50},{-50,50,-50},{-50,-50,50},{50,-50,50},{50,50,50},{-50,50,50}};
+    static int f[][4] = {{0,1,3,2},{1,5,2,6},{5,4,6,7},{4,0,7,3},{4,5,0,1},{3,2,7,6}};
+    for (int i = 0; i < 6; i++) {
+        long p, otz; POLY_F4 *poly;
+        gte_ldv3(&v[f[i][0]], &v[f[i][1]], &v[f[i][2]]); gte_rtpt(); gte_nclip(); gte_stopz(&p);
+        if (p <= 0) continue;
+        gte_avsz3(); gte_stotz(&otz);
+        if (otz > 0 && otz < OT_LEN) {
+            poly = (POLY_F4 *)alloc_packet(ctx, otz, sizeof(POLY_F4)); setPolyF4(poly);
+            gte_stsxy0(&poly->x0); gte_stsxy1(&poly->x1); gte_stsxy2(&poly->x2);
+            gte_ldv0(&v[f[i][3]]); gte_rtps(); gte_stsxy(&poly->x3); setRGB0(poly, r, g, b);
+        }
+    }
 }
 
 int main(void) {
-	RenderContext ctx;
-	TIM_IMAGE tim;
-	int s_x[MAX_SNAKE], s_y[MAX_SNAKE];
-	int s_len = 3;
-	int dx = 1, dy = 0;
-	int f_x = 5, f_y = 5;
-	int frames = 0;
-	int dead = 0;
-	int score = 0;
+	RenderContext ctx; TIM_IMAGE tim;
+	int s_x[MAX_SNAKE], s_y[MAX_SNAKE], s_len = 3, dx = 1, dy = 0, f_x = 5, f_y = 5, frames = 0, dead = 0, score = 0;
 
-	ResetGraph(0);
-	setup_context(&ctx);
-	initializePad();
-	spu_init();
+	ResetGraph(0); setup_context(&ctx); initializePad(); SpuInit(); SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
+	
+	// Title Screens
+	loadTexture(tex_loading, &tim);
+	while (!(SysPadT & Pad1Cross)) { padUpdate(); draw_fullscreen_sprite(&ctx, &tim, 1); flip_buffers(&ctx); }
+	loadTexture(tex_control, &tim);
+	while (!(SysPadT & Pad1Cross)) { padUpdate(); draw_fullscreen_sprite(&ctx, &tim, 1); flip_buffers(&ctx); }
 
 	play_sample(jungle_sounds_vag, jungle_sounds_vag_len, 0);
 
@@ -196,56 +127,19 @@ int main(void) {
 			if ((SysPadT & Pad1Down) && dy == 0) { dx = 0; dy = 1; }
 			if ((SysPadT & Pad1Left) && dx == 0) { dx = -1; dy = 0; }
 			if ((SysPadT & Pad1Right) && dx == 0) { dx = 1; dy = 0; }
-
-			frames++;
-			if (frames > 10) {
+			if (++frames > 10) {
 				frames = 0;
-				for (int i = s_len - 1; i > 0; i--) {
-					s_x[i] = s_x[i - 1];
-					s_y[i] = s_y[i - 1];
-				}
-				s_x[0] += dx;
-				s_y[0] += dy;
-
-				if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) {
-					if (!dead) play_sample(die1_vag, die1_vag_len, 2);
-					dead = 1;
-				}
-
-				if (!dead && s_x[0] == f_x && s_y[0] == f_y) {
-					if (s_len < MAX_SNAKE) s_len++;
-					score += 10;
-					f_x = (rand() % 18) - 9;
-					f_y = (rand() % 12) - 6;
-					play_sample(bite1_vag, bite1_vag_len, 1);
-				}
-
-				for (int i = 1; i < s_len; i++) {
-					if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) {
-						if (!dead) play_sample(die1_vag, die1_vag_len, 2);
-						dead = 1;
-					}
-				}
+				for (int i = s_len - 1; i > 0; i--) { s_x[i] = s_x[i-1]; s_y[i] = s_y[i-1]; }
+				s_x[0] += dx; s_y[0] += dy;
+				if (s_x[0] < -10 || s_x[0] > 10 || s_y[0] < -7 || s_y[0] > 7) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
+				if (!dead && s_x[0] == f_x && s_y[0] == f_y) { s_len++; score += 10; f_x = (rand() % 18) - 9; f_y = (rand() % 12) - 6; play_sample(bite1_vag, bite1_vag_len, 1); }
+				for (int i = 1; i < s_len; i++) if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) { play_sample(die1_vag, die1_vag_len, 2); dead = 1; }
 			}
-		} else {
-			if (SysPadT & Pad1Cross) { dead = 0; s_len = 3; }
-		}
+		} else if (SysPadT & Pad1Cross) { dead = 0; s_len = 3; dx = 1; dy = 0; score = 0; for(int i=0;i<s_len;i++){s_x[i]=-i; s_y[i]=0;} }
 
-		SVECTOR rot = {400, 0, 0}; 
-		VECTOR pos;
-		pos.vz = 1800;
-
-		pos.vx = f_x * GRID_SIZE;
-		pos.vy = f_y * GRID_SIZE;
-		draw_cube(&ctx, &rot, &pos, 255, 0, 0);
-
-		for (int i = 0; i < s_len; i++) {
-			pos.vx = s_x[i] * GRID_SIZE;
-			pos.vy = s_y[i] * GRID_SIZE;
-			draw_cube(&ctx, &rot, &pos, 0, 255, 0);
-		}
-
+		SVECTOR rot = {400, 0, 0}; VECTOR pos = {0, 0, 1800};
+		pos.vx = f_x * GRID_SIZE; pos.vy = f_y * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 255, 0, 0);
+		for (int i = 0; i < s_len; i++) { pos.vx = s_x[i] * GRID_SIZE; pos.vy = s_y[i] * GRID_SIZE; draw_cube(&ctx, &rot, &pos, 0, 255, 0); }
 		flip_buffers(&ctx);
 	}
-	return 0;
 }
