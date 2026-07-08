@@ -187,6 +187,7 @@ int main(void) {
 	int f_x = 5, f_y = 5;
 	int frames = 0;
 	int dead = 0;
+	int score = 0;
 
 	for(int i = 0; i < s_len; i++) {
 		s_x[i] = -i;
@@ -249,6 +250,7 @@ int main(void) {
 
 				if (!dead && s_x[0] == f_x && s_y[0] == f_y) {
 					if (s_len < MAX_SNAKE) s_len++;
+					score += 10;
 					f_x = (rand() % 18) - 9;
 					f_y = (rand() % 12) - 6;
 					play_sample(snd_bite1, snd_bite1_len, 0);
@@ -258,12 +260,17 @@ int main(void) {
 					if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) dead = 1;
 				}
 			}
+
+			FntPrint(0, "SCORE: %d\n", score);
+			FntFlush(0);
 		} else {
 			FntPrint(0, "GAME OVER\nPRESS X TO RESTART\n");
+			FntPrint(0, "FINAL SCORE: %d\n", score);
 			FntFlush(0);
 			if (SysPadT & Pad1Cross) {
 				s_len = 3;
 				dx = 1; dy = 0;
+				score = 0;
 				for(int i = 0; i < s_len; i++) { s_x[i] = -i; s_y[i] = 0; }
 				f_x = 5; f_y = 5;
 				dead = 0;
