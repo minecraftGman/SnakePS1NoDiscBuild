@@ -34,7 +34,7 @@ jobs:
           cd /tmp/psn00b-dl
 
           echo "== Assets in the latest PSn00bSDK release =="
-          gh api repos/Lameguy64/PSn00bSDK/releases/latest --jq '.assets[].name'
+          gh release download --repo Lameguy64/PSn00bSDK --clobber --pattern "*"
 
           # Download everything from the release rather than guessing a
           # filename pattern -- it's a small handful of files, and this
