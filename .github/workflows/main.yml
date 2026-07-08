@@ -1,0 +1,67 @@
+name: Build (PSn00bSDK, no CD)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "psn00b_port/**"
+  pull_request:
+    paths:
+      - "psn00b_port/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: psn00b_port
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Download latest PSn00bSDK release (official, open source)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$HOME/psn00bsdk"
+          gh release download --repo Lameguy64/PSn00bSDK --pattern "*linux*" --dir /tmp/psn00b-dl --clobber
+          # The release ships as a single archive; extract whatever we got.
+          cd /tmp/psn00b-dl
+          for f in *.zip; do [ -f "$f" ] && unzip -q "$f" -d "$HOME/psn00bsdk"; done
+          for f in *.tar.gz *.tgz; do [ -f "$f" ] && tar -xzf "$f" -C "$HOME/psn00bsdk"; done
+          ls -R "$HOME/psn00bsdk" | head -50
+
+      - name: Set up PATH and PSN00BSDK_LIBS
+        run: |
+          # The archive extracts to some top-level folder; find bin/ and lib/libpsn00b under it.
+          BIN_DIR="$(dirname "$(find "$HOME/psn00bsdk" -maxdepth 3 -type d -name bin | head -1)")/bin"
+          LIBS_DIR="$(find "$HOME/psn00bsdk" -maxdepth 4 -type d -path '*/lib/libpsn00b' | head -1)"
+          echo "$BIN_DIR" >> "$GITHUB_PATH"
+          echo "PSN00BSDK_LIBS=$LIBS_DIR" >> "$GITHUB_ENV"
+          echo "Resolved BIN_DIR=$BIN_DIR"
+          echo "Resolved LIBS_DIR=$LIBS_DIR"
+
+      - name: Configure
+        run: cmake --preset default .
+
+      - name: Build
+        run: cmake --build ./build
+
+      - name: Find and upload the built executable
+        run: |
+          mkdir -p /tmp/out
+          find build -maxdepth 2 -iname "*.exe" -exec cp {} /tmp/out/ \;
+          ls -la /tmp/out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snake-psn00bsdk
+          path: /tmp/out
+          if-no-files-found: error
