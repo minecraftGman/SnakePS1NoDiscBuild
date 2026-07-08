@@ -11,6 +11,7 @@ psn00bsdk_add_executable(snake STATIC
 	src/Controller.c
 	src/AssetsTextures.c
 	src/AssetsAudio.c
+	src/tmd.c
 )
 
 target_link_libraries(snake PRIVATE psxapi)
