@@ -1,25 +1,3 @@
-/*
- * Snake (No-CD, PSn00bSDK build) -- milestone 1
- * ------------------------------------------------
- * This is NOT the full 3D game yet. PSn00bSDK does not provide an
- * equivalent to Sony's high-level "Gs" object/scene library that the
- * original 3D.c/Snake.c rendering was built on, nor a .TMD model loader,
- * so that part still needs to be written as a small custom engine (see
- * the project README for the concrete plan -- the primitive types the
- * models actually use are already identified).
- *
- * What this milestone proves out end-to-end, for real, in CI:
- * - screen/double-buffer setup (psxgpu.h)
- * - the embedded (no-CD) texture assets displaying as 2D sprites
- * (the game's original loading screen + controls screen)
- * - controller input (Controller.c, reused completely unmodified --
- * PadInit()/PadRead() is identical between PsyQ and PSn00bSDK)
- * - SPU sound effect playback from the embedded VAG data
- *
- * Once this builds and boots correctly, the 3D gameplay layer gets added
- * on top of this same foundation.
- */
-
 #include <stdint.h>
 #include <stddef.h>
 #include <psxgpu.h>
@@ -28,10 +6,10 @@
 #include <psxspu.h>
 #include <psxpad.h>
 #include <inline_c.h>
+#include "tmd.h"
 
-#define OT_LEN      8
-#define PACKET_LEN  4096
-
+#define OT_LEN      4096
+#define PACKET_LEN  32768
 #define SCREEN_XRES 320
 #define SCREEN_YRES 240
 
@@ -48,13 +26,19 @@ typedef struct {
 	int          active;
 } RenderContext;
 
-/* Embedded assets (no CD needed) -- see AssetsTextures.c / AssetsAudio.c */
 extern unsigned char tex_loading[];
 extern unsigned char tex_control[];
 extern unsigned char snd_bite1[];
 extern unsigned int  snd_bite1_len;
 
-/* --- Rendering setup (adapted from PSn00bSDK's beginner/hello example) --- */
+extern int  SysPad, SysPadT;
+extern void initializePad(void);
+extern void padUpdate(void);
+#define Pad1Cross PAD_CROSS
+#define Pad1Up    PAD_UP
+#define Pad1Down  PAD_DOWN
+#define Pad1Left  PAD_LEFT
+#define Pad1Right PAD_RIGHT
 
 static void setup_context(RenderContext *ctx) {
 	SetDefDrawEnv(&(ctx->buffers[0].draw), 0, 0, SCREEN_XRES, SCREEN_YRES);
@@ -70,8 +54,11 @@ static void setup_context(RenderContext *ctx) {
 	ctx->active = 0;
 	ctx->next_packet = ctx->buffers[0].packets;
 	ClearOTagR(ctx->buffers[0].ot, OT_LEN);
-
 	SetDispMask(1);
+
+	InitGeom();
+	SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2);
+	SetGeomScreen(256);
 }
 
 static void flip_buffers(RenderContext *ctx) {
@@ -97,10 +84,6 @@ static void *alloc_packet(RenderContext *ctx, int z, size_t size) {
 	return (void *) p;
 }
 
-/* --- Texture loading (drop-in equivalent of the original loadTexture(),
- * using PSn00bSDK's GetTimInfo() in place of Sony Gs library's
- * GsGetTimInfo()) --- */
-
 static void loadTexture(unsigned char imageData[], TIM_IMAGE *out) {
 	GetTimInfo((const uint32_t *) imageData, out);
 	LoadImage(out->prect, out->paddr);
@@ -111,15 +94,12 @@ static void loadTexture(unsigned char imageData[], TIM_IMAGE *out) {
 	}
 }
 
-/* Draws a loaded TIM as a full 320x240 background sprite. */
 static void draw_fullscreen_sprite(RenderContext *ctx, TIM_IMAGE *tim, int z) {
 	POLY_FT4 *poly = (POLY_FT4 *) alloc_packet(ctx, z, sizeof(POLY_FT4));
-
 	int pmode = tim->mode & 0x3;
 	int pix_w = tim->prect->w;
 	if (pmode == 0) pix_w *= 4;
 	else if (pmode == 1) pix_w *= 2;
-
 	if (pix_w > 255) pix_w = 255;
 	int pix_h = tim->prect->h > 255 ? 255 : tim->prect->h;
 
@@ -130,14 +110,6 @@ static void draw_fullscreen_sprite(RenderContext *ctx, TIM_IMAGE *tim, int z) {
 	poly->tpage = getTPage(pmode, 0, tim->prect->x, tim->prect->y);
 	poly->clut  = getClut(tim->crect->x, tim->crect->y);
 }
-
-/* --- Controller input: Controller.c is reused completely unmodified. --- */
-extern int  SysPad, SysPadT;
-extern void initializePad(void);
-extern void padUpdate(void);
-#define Pad1Cross PAD_CROSS
-
-/* --- SPU: minimal one-shot playback of an embedded VAG sample. --- */
 
 static void spu_init(void) {
 	SpuInit();
@@ -156,53 +128,158 @@ static void play_sample(unsigned char *vag, unsigned int len, int voice) {
 	SpuSetKey(1, 1 << voice);
 }
 
+static SVECTOR cube_verts[] = {
+	{-50, -50, -50}, { 50, -50, -50}, { 50,  50, -50}, {-50,  50, -50},
+	{-50, -50,  50}, { 50, -50,  50}, { 50,  50,  50}, {-50,  50,  50}
+};
+
+static int cube_faces[][4] = {
+	{0, 1, 2, 3}, {1, 5, 6, 2}, {5, 4, 7, 6},
+	{4, 0, 3, 7}, {4, 5, 1, 0}, {3, 2, 6, 7}
+};
+
+static void draw_cube(RenderContext *ctx, SVECTOR *rotation, VECTOR *translation, int r, int g, int b) {
+	MATRIX mtx;
+	RotMatrix(rotation, &mtx);
+	TransMatrix(&mtx, translation);
+	SetRotMatrix(&mtx);
+	SetTransMatrix(&mtx);
+
+	for (int i = 0; i < 6; i++) {
+		long p, otz;
+		POLY_F4 *poly;
+
+		gte_ldv3(&cube_verts[cube_faces[i][0]], &cube_verts[cube_faces[i][1]], &cube_verts[cube_faces[i][2]]);
+		gte_rtpt();
+		gte_nclip();
+		gte_stopz(&p);
+
+		if (p <= 0) continue;
+
+		gte_avsz3();
+		gte_stotz(&otz);
+
+		if (otz > 0 && otz < OT_LEN) {
+			poly = (POLY_F4 *)alloc_packet(ctx, otz, sizeof(POLY_F4));
+			setPolyF4(poly);
+			gte_stsxy0(&poly->x0);
+			gte_stsxy1(&poly->x1);
+			gte_stsxy2(&poly->x2);
+			gte_ldv0(&cube_verts[cube_faces[i][3]]);
+			gte_rtps();
+			gte_stsxy(&poly->x3);
+			setRGB0(poly, r, g, b);
+		}
+	}
+}
+
+#define MAX_SNAKE 100
+#define GRID_SIZE 100
+
 int main(void) {
 	RenderContext ctx;
 	TIM_IMAGE tim;
+	
+	int s_x[MAX_SNAKE], s_y[MAX_SNAKE];
+	int s_len = 3;
+	int dx = 1, dy = 0;
+	int f_x = 5, f_y = 5;
+	int frames = 0;
+	int dead = 0;
+
+	for(int i = 0; i < s_len; i++) {
+		s_x[i] = -i;
+		s_y[i] = 0;
+	}
 
 	ResetGraph(0);
 	FntLoad(960, 0);
 	FntOpen(0, 10, 320, 224, 0, 100);
 	setup_context(&ctx);
-
 	initializePad();
 	spu_init();
 
-	/* Loading screen, drawn twice so it lands in both render buffers,
-	 * same as the original PreRender();PreRender(); double-call. */
 	loadTexture(tex_loading, &tim);
 	draw_fullscreen_sprite(&ctx, &tim, 1);
-	FntPrint(0, "Snake (PSn00bSDK build)\n");
-	FntPrint(0, "Press X to continue\n");
-	FntFlush(0);
 	flip_buffers(&ctx);
-
 	draw_fullscreen_sprite(&ctx, &tim, 1);
 	flip_buffers(&ctx);
 
-	/* Wait for X, playing the bite sound as a smoke test that SPU works. */
 	for (;;) {
 		padUpdate();
 		if (SysPadT & Pad1Cross) {
 			play_sample(snd_bite1, snd_bite1_len, 0);
 			break;
 		}
-
 		draw_fullscreen_sprite(&ctx, &tim, 1);
 		flip_buffers(&ctx);
 	}
 
-	/* Controls screen. */
 	loadTexture(tex_control, &tim);
 	for (;;) {
 		padUpdate();
+		if (SysPadT & Pad1Cross) break;
 		draw_fullscreen_sprite(&ctx, &tim, 1);
-		if (SysPadT & Pad1Cross) {
-			FntPrint(0, "3D gameplay layer not yet ported -- see README\n");
-			FntFlush(0);
-		}
 		flip_buffers(&ctx);
 	}
 
+	SVECTOR rot = {400, 0, 0}; 
+
+	for (;;) {
+		padUpdate();
+		
+		if (!dead) {
+			if ((SysPadT & Pad1Up) && dy == 0) { dx = 0; dy = -1; }
+			if ((SysPadT & Pad1Down) && dy == 0) { dx = 0; dy = 1; }
+			if ((SysPadT & Pad1Left) && dx == 0) { dx = -1; dy = 0; }
+			if ((SysPadT & Pad1Right) && dx == 0) { dx = 1; dy = 0; }
+
+			frames++;
+			if (frames > 10) {
+				frames = 0;
+				for (int i = s_len - 1; i > 0; i--) {
+					s_x[i] = s_x[i - 1];
+					s_y[i] = s_y[i - 1];
+				}
+				s_x[0] += dx;
+				s_y[0] += dy;
+
+				if (s_x[0] == f_x && s_y[0] == f_y) {
+					if (s_len < MAX_SNAKE) s_len++;
+					f_x = (rand() % 10) - 5;
+					f_y = (rand() % 10) - 5;
+					play_sample(snd_bite1, snd_bite1_len, 0);
+				}
+
+				for (int i = 1; i < s_len; i++) {
+					if (s_x[0] == s_x[i] && s_y[0] == s_y[i]) dead = 1;
+				}
+			}
+		} else {
+			FntPrint(0, "GAME OVER\nPRESS X TO RESTART\n");
+			FntFlush(0);
+			if (SysPadT & Pad1Cross) {
+				s_len = 3;
+				dx = 1; dy = 0;
+				for(int i = 0; i < s_len; i++) { s_x[i] = -i; s_y[i] = 0; }
+				dead = 0;
+			}
+		}
+
+		VECTOR pos;
+		pos.z = 1800;
+
+		pos.x = f_x * GRID_SIZE;
+		pos.y = f_y * GRID_SIZE;
+		draw_cube(&ctx, &rot, &pos, 255, 0, 0);
+
+		for (int i = 0; i < s_len; i++) {
+			pos.x = s_x[i] * GRID_SIZE;
+			pos.y = s_y[i] * GRID_SIZE;
+			draw_cube(&ctx, &rot, &pos, 0, 255, 0);
+		}
+
+		flip_buffers(&ctx);
+	}
 	return 0;
 }
