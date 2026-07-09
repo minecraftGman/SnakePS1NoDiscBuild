@@ -1,6 +1,6 @@
 # Snake -- PSn00bSDK port (no CD, CI-buildable)
 
-## Status: milestone 1 of 2 -- 2D layer only, not the full game yet
+## Status: We have the gameplay just no audio
 
 This builds with a 100% open-source toolchain, fully automatically in CI
 (see `.github/workflows/build-psn00bsdk.yml`). No PsyQ, no manual SDK setup.
